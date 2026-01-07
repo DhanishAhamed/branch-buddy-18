@@ -64,7 +64,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
       price: price ? parseFloat(price) : null,
       area_sqft: areaSqft ? parseFloat(areaSqft) : null,
       property_type_id: propertyTypeId || null,
-      portal_type: selectedType?.portal_type || null,
+      portal_type: (selectedType?.portal_type as 'commercial' | 'residential' | 'rentals') || null,
       branch_id: profile.branch_id,
       created_by: user?.id,
     }]);

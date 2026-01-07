@@ -13,7 +13,7 @@ export default function AdminSettings() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [newBranch, setNewBranch] = useState({ name: '', city: '' });
-  const [newType, setNewType] = useState({ name: '', portal_type: 'residential' });
+  const [newType, setNewType] = useState<{ name: string; portal_type: 'commercial' | 'residential' | 'rentals' }>({ name: '', portal_type: 'residential' });
   const { toast } = useToast();
 
   useEffect(() => { fetchData(); }, []);
