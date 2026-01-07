@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation, Phone, Search, MapPin, Loader2 } from 'lucide-react';
+import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -25,6 +26,10 @@ interface Property {
   address: string | null;
   price: number | null;
   property_type_id: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  area_sqft: number | null;
+  images: string[] | null;
   lat: number;
   lng: number;
 }
@@ -59,11 +64,16 @@ export default function MapSearch() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const { profile } = useAuth();
 
   useEffect(() => {
     fetchPropertyTypes();
+  }, []);
+
+  useEffect(() => {
     fetchProperties();
   }, [radius, selectedType, priceRange, profile, center]);
 
@@ -85,7 +95,7 @@ export default function MapSearch() {
   const fetchProperties = async () => {
     let query = supabase
       .from('properties')
-      .select('id, title, address, price, property_type_id, location')
+      .select('id, title, address, price, property_type_id, bedrooms, bathrooms, area_sqft, images, location')
       .eq('status', 'available');
 
     if (selectedType !== 'all') {
@@ -116,6 +126,10 @@ export default function MapSearch() {
               address: p.address,
               price: p.price,
               property_type_id: p.property_type_id,
+              bedrooms: p.bedrooms,
+              bathrooms: p.bathrooms,
+              area_sqft: p.area_sqft,
+              images: p.images,
               lat,
               lng,
             });
@@ -138,12 +152,16 @@ export default function MapSearch() {
     return R * c;
   };
 
-  const searchPlace = async () => {
-    if (!searchQuery.trim()) return;
+  const searchPlace = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
     setIsSearching(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
       );
       const data = await response.json();
       setSearchResults(data);
@@ -152,11 +170,23 @@ export default function MapSearch() {
       console.error('Search error:', error);
     }
     setIsSearching(false);
+  }, []);
+
+  const handleSearchInput = (value: string) => {
+    setSearchQuery(value);
+    
+    // Debounce search
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      searchPlace(value);
+    }, 300);
   };
 
   const selectPlace = (result: SearchResult) => {
     setCenter([parseFloat(result.lat), parseFloat(result.lon)]);
-    setSearchQuery(result.display_name);
+    setSearchQuery(result.display_name.split(',')[0]);
     setShowResults(false);
   };
 
@@ -164,160 +194,259 @@ export default function MapSearch() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
 
+  const formatPrice = (price: number) => {
+    if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
+    if (price >= 100000) return `₹${(price / 100000).toFixed(0)}L`;
+    return `₹${(price / 1000).toFixed(0)}K`;
+  };
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Filters */}
-      <Card className="m-4 mb-0 border-border">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
-            Search Properties
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Place Search */}
-          <div ref={searchRef} className="relative">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+    <div className="h-full flex flex-col md:flex-row">
+      {/* Left Side - Map & Filters */}
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col h-full">
+        {/* Filters */}
+        <Card className="m-4 mb-0 border-border">
+          <CardContent className="p-4 space-y-4">
+            {/* Place Search */}
+            <div ref={searchRef} className="relative">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search for a place..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && searchPlace()}
+                  onChange={(e) => handleSearchInput(e.target.value)}
                   className="pl-10"
                 />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
               </div>
-              <Button onClick={searchPlace} disabled={isSearching}>
-                {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
-              </Button>
+              
+              {/* Search Results Dropdown */}
+              {showResults && searchResults.length > 0 && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {searchResults.map((result, index) => (
+                    <button
+                      key={index}
+                      className="w-full px-4 py-3 text-left hover:bg-muted/50 text-sm border-b border-border last:border-b-0"
+                      onClick={() => selectPlace(result)}
+                    >
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">{result.display_name}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block text-foreground">
+                Radius: <span className="text-primary font-semibold">{radius[0]} km</span>
+              </label>
+              <Slider
+                value={radius}
+                onValueChange={setRadius}
+                min={1}
+                max={50}
+                step={1}
+                className="w-full"
+              />
             </div>
             
-            {/* Search Results Dropdown */}
-            {showResults && searchResults.length > 0 && (
-              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {searchResults.map((result, index) => (
-                  <button
-                    key={index}
-                    className="w-full px-4 py-3 text-left hover:bg-muted/50 text-sm border-b border-border last:border-b-0"
-                    onClick={() => selectPlace(result)}
-                  >
-                    <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{result.display_name}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            <div className="flex gap-3">
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {propertyTypes.map(type => (
+                    <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          <div>
-            <label className="text-sm font-medium mb-2 block text-foreground">
-              Search Radius: <span className="text-primary font-semibold">{radius[0]} km</span>
-            </label>
-            <Slider
-              value={radius}
-              onValueChange={setRadius}
-              min={1}
-              max={50}
-              step={1}
-              className="w-full"
-            />
-          </div>
-          
-          <div className="flex gap-3">
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Property Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {propertyTypes.map(type => (
-                  <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={priceRange} onValueChange={setPriceRange}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Price" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Price</SelectItem>
+                  <SelectItem value="0-5000000">Under ₹50L</SelectItem>
+                  <SelectItem value="5000000-10000000">₹50L - ₹1Cr</SelectItem>
+                  <SelectItem value="10000000-50000000">₹1Cr - ₹5Cr</SelectItem>
+                  <SelectItem value="50000000-">Above ₹5Cr</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
-            <Select value={priceRange} onValueChange={setPriceRange}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Price Range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Price</SelectItem>
-                <SelectItem value="0-5000000">Under ₹50L</SelectItem>
-                <SelectItem value="5000000-10000000">₹50L - ₹1Cr</SelectItem>
-                <SelectItem value="10000000-50000000">₹1Cr - ₹5Cr</SelectItem>
-                <SelectItem value="50000000-">Above ₹5Cr</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Map */}
-      <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border">
-        <MapContainer
-          center={center}
-          zoom={12}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <MapController center={center} zoom={12} />
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          
-          {/* Radius circle */}
-          <Circle
+        {/* Map */}
+        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border min-h-[300px]">
+          <MapContainer
             center={center}
-            radius={radius[0] * 1000}
-            pathOptions={{
-              color: 'hsl(142, 76%, 36%)',
-              fillColor: 'hsl(142, 76%, 36%)',
-              fillOpacity: 0.1,
-            }}
-          />
+            zoom={12}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <MapController center={center} zoom={12} />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            
+            {/* Radius circle */}
+            <Circle
+              center={center}
+              radius={radius[0] * 1000}
+              pathOptions={{
+                color: 'hsl(142, 76%, 36%)',
+                fillColor: 'hsl(142, 76%, 36%)',
+                fillOpacity: 0.1,
+              }}
+            />
 
-          {/* Center marker */}
-          <Marker position={center}>
-            <Popup>
-              <div className="text-center p-1">
-                <strong>Search Center</strong>
-              </div>
-            </Popup>
-          </Marker>
-
-          {/* Property markers */}
-          {properties.map(property => (
-            <Marker key={property.id} position={[property.lat, property.lng]}>
+            {/* Center marker */}
+            <Marker position={center}>
               <Popup>
-                <div className="p-2 min-w-[200px]">
-                  <h3 className="font-semibold text-foreground">{property.title}</h3>
-                  {property.address && (
-                    <p className="text-sm text-muted-foreground mt-1">{property.address}</p>
-                  )}
-                  {property.price && (
-                    <p className="text-primary font-bold mt-2">
-                      ₹{(property.price / 100000).toFixed(0)}L
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="outline" onClick={() => openDirections(property.lat, property.lng)}>
-                      <Navigation className="h-4 w-4 mr-1" />
-                      Directions
-                    </Button>
-                  </div>
+                <div className="text-center p-1">
+                  <strong>Search Center</strong>
                 </div>
               </Popup>
             </Marker>
-          ))}
-        </MapContainer>
+
+            {/* Property markers */}
+            {properties.map(property => (
+              <Marker 
+                key={property.id} 
+                position={[property.lat, property.lng]}
+                eventHandlers={{
+                  click: () => setSelectedProperty(property),
+                }}
+              >
+                <Popup>
+                  <div className="p-1 min-w-[150px]">
+                    <h3 className="font-semibold text-sm">{property.title}</h3>
+                    {property.price && (
+                      <p className="text-primary font-bold text-sm mt-1">
+                        {formatPrice(property.price)}
+                      </p>
+                    )}
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
+        
+        <p className="text-center text-sm text-muted-foreground pb-4">
+          <span className="font-semibold text-primary">{properties.length}</span> properties found
+        </p>
       </div>
 
-      <p className="text-center text-sm text-muted-foreground pb-4">
-        <span className="font-semibold text-primary">{properties.length}</span> properties found within {radius[0]}km
-      </p>
+      {/* Right Side - Property Cards */}
+      <div className="w-full md:w-1/2 lg:w-3/5 h-full overflow-y-auto border-l border-border bg-muted/30">
+        <div className="p-4 space-y-4">
+          <h2 className="font-semibold text-lg text-foreground flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" />
+            Properties in Area
+          </h2>
+          
+          {properties.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <MapPin className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                <p className="text-muted-foreground text-center">
+                  No properties found in this area.<br />
+                  Try expanding the search radius or changing filters.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {properties.map(property => (
+                <Card 
+                  key={property.id} 
+                  className={`overflow-hidden hover:shadow-lg transition-all cursor-pointer ${
+                    selectedProperty?.id === property.id ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => setSelectedProperty(property)}
+                >
+                  {/* Image */}
+                  <div className="h-32 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center overflow-hidden">
+                    {property.images?.[0] ? (
+                      <img 
+                        src={property.images[0]} 
+                        alt={property.title} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Building2 className="h-10 w-10 text-muted-foreground/30" />
+                    )}
+                  </div>
+                  
+                  <CardContent className="p-3 space-y-2">
+                    <h3 className="font-semibold text-sm text-foreground line-clamp-1">
+                      {property.title}
+                    </h3>
+                    
+                    {property.address && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="line-clamp-1">{property.address}</span>
+                      </p>
+                    )}
+
+                    {(property.bedrooms || property.bathrooms || property.area_sqft) && (
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {property.bedrooms && (
+                          <span className="flex items-center gap-1">
+                            <Bed className="h-3 w-3" />
+                            {property.bedrooms}
+                          </span>
+                        )}
+                        {property.bathrooms && (
+                          <span className="flex items-center gap-1">
+                            <Bath className="h-3 w-3" />
+                            {property.bathrooms}
+                          </span>
+                        )}
+                        {property.area_sqft && (
+                          <span className="flex items-center gap-1">
+                            <Maximize className="h-3 w-3" />
+                            {property.area_sqft}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                      {property.price && (
+                        <span className="font-bold text-primary">
+                          {formatPrice(property.price)}
+                        </span>
+                      )}
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDirections(property.lat, property.lng);
+                        }}
+                      >
+                        <Navigation className="h-3 w-3 mr-1" />
+                        Directions
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

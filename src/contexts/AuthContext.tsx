@@ -11,6 +11,7 @@ interface Profile {
   branch_id: string | null;
   is_approved: boolean;
   can_view_owners: boolean;
+  can_edit_properties: boolean;
   pipeline_access: 'sales' | 'ops' | 'both';
   phone: string | null;
 }

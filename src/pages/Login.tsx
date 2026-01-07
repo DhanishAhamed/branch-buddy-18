@@ -20,14 +20,23 @@ export default function Login() {
     setIsLoading(true);
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
       });
+      
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Success', description: 'Check your email to verify your account' });
+      } else if (data.user) {
+        // Create profile for new user
+        await supabase.from('profiles').insert({
+          user_id: data.user.id,
+          email: data.user.email,
+        });
+        toast({ title: 'Success', description: 'Account created! Check your email to verify.' });
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({

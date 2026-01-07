@@ -5,12 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Search, Building2, MapPin, Bed, Bath, Maximize } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Bed, Bath, Maximize, Pencil } from 'lucide-react';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
+import { EditPropertyDialog } from '@/components/properties/EditPropertyDialog';
 
 interface Property {
   id: string;
   title: string;
+  description: string | null;
   address: string | null;
   price: number | null;
   area_sqft: number | null;
@@ -18,13 +20,17 @@ interface Property {
   bathrooms: number | null;
   status: string;
   portal_type: string | null;
+  property_type_id: string | null;
   property_type: { name: string } | null;
+  images: string[] | null;
+  location?: unknown;
 }
 
 export default function Properties() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editProperty, setEditProperty] = useState<Property | null>(null);
   const { profile, isAdmin } = useAuth();
 
   useEffect(() => {
@@ -34,7 +40,7 @@ export default function Properties() {
   const fetchProperties = async () => {
     const { data } = await supabase
       .from('properties')
-      .select('id, title, address, price, area_sqft, bedrooms, bathrooms, status, portal_type, property_type:property_types(name)')
+      .select('id, title, description, address, price, area_sqft, bedrooms, bathrooms, status, portal_type, property_type_id, images, location, property_type:property_types(name)')
       .order('created_at', { ascending: false });
     
     if (data) setProperties(data as Property[]);
@@ -65,6 +71,8 @@ export default function Properties() {
     if (price >= 1000) return `₹${(price / 1000).toFixed(0)}K`;
     return `₹${price.toLocaleString()}`;
   };
+
+  const canEdit = isAdmin || profile?.can_edit_properties;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -107,18 +115,37 @@ export default function Properties() {
           filteredProperties.map((property) => {
             const status = statusConfig[property.status] || statusConfig.available;
             const portalColor = property.portal_type ? portalColors[property.portal_type] : '';
+            const firstImage = property.images?.[0];
             
             return (
               <Card 
                 key={property.id} 
                 className={`overflow-hidden hover:shadow-lg transition-all duration-300 group border-l-4 ${portalColor}`}
               >
-                {/* Property Image Placeholder */}
+                {/* Property Image */}
                 <div className="h-40 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center relative overflow-hidden">
-                  <Building2 className="h-16 w-16 text-muted-foreground/30 group-hover:scale-110 transition-transform duration-300" />
+                  {firstImage ? (
+                    <img 
+                      src={firstImage} 
+                      alt={property.title} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <Building2 className="h-16 w-16 text-muted-foreground/30 group-hover:scale-110 transition-transform duration-300" />
+                  )}
                   <Badge className={`absolute top-3 right-3 ${status.bg} ${status.text} border-0`}>
                     {status.label}
                   </Badge>
+                  {canEdit && (
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setEditProperty(property)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
                 
                 <CardContent className="p-4 space-y-3">
@@ -187,6 +214,13 @@ export default function Properties() {
       <AddPropertyDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
+        onSuccess={fetchProperties}
+      />
+
+      <EditPropertyDialog
+        property={editProperty}
+        open={!!editProperty}
+        onOpenChange={(open) => !open && setEditProperty(null)}
         onSuccess={fetchProperties}
       />
     </div>
