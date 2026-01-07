@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Search, Building2, MapPin, IndianRupee } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Bed, Bath, Maximize } from 'lucide-react';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
 
 interface Property {
@@ -14,7 +14,10 @@ interface Property {
   address: string | null;
   price: number | null;
   area_sqft: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
   status: string;
+  portal_type: string | null;
   property_type: { name: string } | null;
 }
 
@@ -31,7 +34,7 @@ export default function Properties() {
   const fetchProperties = async () => {
     const { data } = await supabase
       .from('properties')
-      .select('id, title, address, price, area_sqft, status, property_type:property_types(name)')
+      .select('id, title, address, price, area_sqft, bedrooms, bathrooms, status, portal_type, property_type:property_types(name)')
       .order('created_at', { ascending: false });
     
     if (data) setProperties(data as Property[]);
@@ -42,90 +45,142 @@ export default function Properties() {
     prop.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const statusColors: Record<string, string> = {
-    available: 'bg-primary/10 text-primary',
-    under_offer: 'bg-yellow-500/10 text-yellow-600',
-    sold: 'bg-destructive/10 text-destructive',
-    rented: 'bg-blue-500/10 text-blue-600',
-    off_market: 'bg-muted text-muted-foreground',
+  const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+    available: { bg: 'bg-primary/10', text: 'text-primary', label: 'Available' },
+    under_offer: { bg: 'bg-yellow-500/10', text: 'text-yellow-600', label: 'Under Offer' },
+    sold: { bg: 'bg-destructive/10', text: 'text-destructive', label: 'Sold' },
+    rented: { bg: 'bg-blue-500/10', text: 'text-blue-600', label: 'Rented' },
+    off_market: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Off Market' },
+  };
+
+  const portalColors: Record<string, string> = {
+    commercial: 'border-l-blue-500',
+    residential: 'border-l-green-500',
+    rentals: 'border-l-orange-500',
   };
 
   const formatPrice = (price: number) => {
     if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
     if (price >= 100000) return `₹${(price / 100000).toFixed(0)}L`;
+    if (price >= 1000) return `₹${(price / 1000).toFixed(0)}K`;
     return `₹${price.toLocaleString()}`;
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Properties</h1>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Properties</h1>
+          <p className="text-muted-foreground text-sm">{filteredProperties.length} properties in your portfolio</p>
+        </div>
+        <Button onClick={() => setIsAddDialogOpen(true)} className="shadow-lg shadow-primary/20">
           <Plus className="h-4 w-4 mr-2" />
           Add Property
         </Button>
       </div>
 
-      <div className="relative">
+      {/* Search */}
+      <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search properties..."
+          placeholder="Search by title or address..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-10 bg-card"
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Properties Grid */}
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {filteredProperties.length === 0 ? (
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No properties found</p>
+          <Card className="col-span-full border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-1">No properties found</h3>
+              <p className="text-muted-foreground text-sm">Add your first property to get started</p>
             </CardContent>
           </Card>
         ) : (
-          filteredProperties.map((property) => (
-            <Card key={property.id} className="overflow-hidden hover:shadow-md transition-shadow">
-              <div className="h-40 bg-gradient-to-br from-primary/20 to-accent flex items-center justify-center">
-                <Building2 className="h-16 w-16 text-primary/50" />
-              </div>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-foreground line-clamp-1">{property.title}</h3>
-                  <Badge className={statusColors[property.status] || 'bg-muted'}>
-                    {property.status.replace('_', ' ')}
+          filteredProperties.map((property) => {
+            const status = statusConfig[property.status] || statusConfig.available;
+            const portalColor = property.portal_type ? portalColors[property.portal_type] : '';
+            
+            return (
+              <Card 
+                key={property.id} 
+                className={`overflow-hidden hover:shadow-lg transition-all duration-300 group border-l-4 ${portalColor}`}
+              >
+                {/* Property Image Placeholder */}
+                <div className="h-40 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center relative overflow-hidden">
+                  <Building2 className="h-16 w-16 text-muted-foreground/30 group-hover:scale-110 transition-transform duration-300" />
+                  <Badge className={`absolute top-3 right-3 ${status.bg} ${status.text} border-0`}>
+                    {status.label}
                   </Badge>
                 </div>
                 
-                {property.address && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
-                    <MapPin className="h-3 w-3" />
-                    {property.address}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-between mt-3">
-                  {property.price && (
-                    <span className="text-lg font-bold text-primary flex items-center">
-                      {formatPrice(property.price)}
-                    </span>
+                <CardContent className="p-4 space-y-3">
+                  {/* Title & Type */}
+                  <div>
+                    <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                      {property.title}
+                    </h3>
+                    {property.property_type && (
+                      <Badge variant="outline" className="mt-1.5 text-xs">
+                        {property.property_type.name}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Address */}
+                  {property.address && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="line-clamp-1">{property.address}</span>
+                    </p>
                   )}
-                  {property.area_sqft && (
-                    <span className="text-sm text-muted-foreground">
-                      {property.area_sqft.toLocaleString()} sqft
-                    </span>
-                  )}
-                </div>
 
-                {property.property_type && (
-                  <Badge variant="outline" className="mt-2">
-                    {property.property_type.name}
-                  </Badge>
-                )}
-              </CardContent>
-            </Card>
-          ))
+                  {/* Features */}
+                  {(property.bedrooms || property.bathrooms || property.area_sqft) && (
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      {property.bedrooms && (
+                        <span className="flex items-center gap-1">
+                          <Bed className="h-3.5 w-3.5" />
+                          {property.bedrooms}
+                        </span>
+                      )}
+                      {property.bathrooms && (
+                        <span className="flex items-center gap-1">
+                          <Bath className="h-3.5 w-3.5" />
+                          {property.bathrooms}
+                        </span>
+                      )}
+                      {property.area_sqft && (
+                        <span className="flex items-center gap-1">
+                          <Maximize className="h-3.5 w-3.5" />
+                          {property.area_sqft.toLocaleString()} sqft
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Price */}
+                  <div className="pt-2 border-t border-border/50">
+                    {property.price ? (
+                      <span className="text-xl font-bold text-primary">
+                        {formatPrice(property.price)}
+                        {property.portal_type === 'rentals' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Price on request</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
 

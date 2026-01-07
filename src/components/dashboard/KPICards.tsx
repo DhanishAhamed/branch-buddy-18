@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, CalendarCheck, Clock } from 'lucide-react';
+import { Users, CalendarCheck, Clock, TrendingUp } from 'lucide-react';
 
 interface KPIData {
   activeLeads: number;
@@ -63,40 +63,59 @@ export function KPICards() {
 
   const cards = [
     {
-      title: 'My Active Leads',
+      title: 'Active Leads',
       value: kpis.activeLeads,
       icon: Users,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
+      gradient: 'from-primary/20 to-primary/5',
+      iconBg: 'bg-primary/15',
+      iconColor: 'text-primary',
+      trend: '+12%',
+      trendUp: true,
     },
     {
       title: 'Site Visits Today',
       value: kpis.siteVisitsToday,
       icon: CalendarCheck,
-      color: 'text-accent-foreground',
-      bgColor: 'bg-accent',
+      gradient: 'from-accent to-accent/30',
+      iconBg: 'bg-accent',
+      iconColor: 'text-accent-foreground',
+      trend: 'On Track',
+      trendUp: true,
     },
     {
       title: 'Pending Follow-ups',
       value: kpis.pendingFollowups,
       icon: Clock,
-      color: 'text-destructive',
-      bgColor: 'bg-destructive/10',
+      gradient: 'from-destructive/15 to-destructive/5',
+      iconBg: 'bg-destructive/15',
+      iconColor: 'text-destructive',
+      trend: kpis.pendingFollowups > 0 ? 'Action needed' : 'All clear',
+      trendUp: kpis.pendingFollowups === 0,
     },
   ];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {cards.map((card) => (
-        <Card key={card.title} className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className={`${card.bgColor} p-3 rounded-xl`}>
-                <card.icon className={`h-6 w-6 ${card.color}`} />
+        <Card key={card.title} className={`overflow-hidden border-0 bg-gradient-to-br ${card.gradient} shadow-sm hover:shadow-md transition-shadow`}>
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
+                <p className="text-3xl font-bold text-foreground">{card.value}</p>
+                <div className="flex items-center gap-1">
+                  {card.trendUp ? (
+                    <TrendingUp className="h-3 w-3 text-primary" />
+                  ) : (
+                    <Clock className="h-3 w-3 text-destructive" />
+                  )}
+                  <span className={`text-xs font-medium ${card.trendUp ? 'text-primary' : 'text-destructive'}`}>
+                    {card.trend}
+                  </span>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{card.value}</p>
-                <p className="text-sm text-muted-foreground">{card.title}</p>
+              <div className={`${card.iconBg} p-3 rounded-xl`}>
+                <card.icon className={`h-6 w-6 ${card.iconColor}`} />
               </div>
             </div>
           </CardContent>
