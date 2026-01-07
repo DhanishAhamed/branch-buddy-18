@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { Building2, MapPin, Search, Bed, Bath, Maximize, Phone, Sparkles } from 'lucide-react';
+import { Building2, MapPin, Search, Bed, Bath, Maximize, Phone, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Property {
@@ -21,6 +21,7 @@ interface Property {
   bedrooms: number | null;
   bathrooms: number | null;
   branch_id: string;
+  images: string[] | null;
   property_type: { name: string } | null;
   branch: { name: string; city: string } | null;
 }
@@ -51,6 +52,49 @@ const portalConfig = {
     accent: 'text-orange-500',
   },
 };
+
+function ImageCarousel({ images }: { images: string[] }) {
+  const [current, setCurrent] = useState(0);
+
+  if (!images || images.length === 0) return null;
+
+  const next = () => setCurrent((c) => (c + 1) % images.length);
+  const prev = () => setCurrent((c) => (c - 1 + images.length) % images.length);
+
+  return (
+    <div className="relative h-48 overflow-hidden">
+      <img 
+        src={images[current]} 
+        alt="" 
+        className="w-full h-full object-cover transition-transform duration-300"
+      />
+      {images.length > 1 && (
+        <>
+          <button 
+            onClick={(e) => { e.stopPropagation(); prev(); }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 hover:bg-background"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); next(); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 hover:bg-background"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {images.map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-2 h-2 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50'}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function Portal() {
   const { type } = useParams<{ type: 'commercial' | 'residential' | 'rentals' }>();
@@ -192,14 +236,18 @@ export default function Portal() {
           {filteredProperties.map((property) => (
             <Card key={property.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 group border-0 shadow-md">
               {/* Image */}
-              <div className={`h-48 bg-gradient-to-br ${config.gradient} opacity-20 flex items-center justify-center relative`}>
-                <Building2 className="h-20 w-20 text-foreground/20 group-hover:scale-110 transition-transform duration-300" />
-                {property.branch && (
-                  <Badge className="absolute top-3 left-3 bg-white/90 text-foreground hover:bg-white">
-                    {property.branch.city}
-                  </Badge>
-                )}
-              </div>
+              {property.images && property.images.length > 0 ? (
+                <ImageCarousel images={property.images} />
+              ) : (
+                <div className={`h-48 bg-gradient-to-br ${config.gradient} opacity-20 flex items-center justify-center relative`}>
+                  <Building2 className="h-20 w-20 text-foreground/20 group-hover:scale-110 transition-transform duration-300" />
+                </div>
+              )}
+              {property.branch && (
+                <Badge className="absolute top-3 left-3 bg-white/90 text-foreground hover:bg-white z-10">
+                  {property.branch.city}
+                </Badge>
+              )}
               
               <CardContent className="p-5 space-y-4">
                 {/* Title */}
