@@ -3,10 +3,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Search, Phone, Mail, User, Clock, ExternalLink } from 'lucide-react';
+import { Plus, Search, Phone, Mail, User, Clock, ExternalLink, Upload, Filter } from 'lucide-react';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
+import { BulkImportDialog } from '@/components/leads/BulkImportDialog';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Lead {
@@ -17,6 +19,20 @@ interface Lead {
   status: string;
   source: string | null;
   created_at: string;
+  branch_id: string;
+  assigned_to: string | null;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+  city: string;
+}
+
+interface Profile {
+  id: string;
+  user_id: string;
+  full_name: string | null;
 }
 
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -31,26 +47,63 @@ const statusConfig: Record<string, { bg: string; text: string; label: string }> 
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [staffProfiles, setStaffProfiles] = useState<Profile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const { profile } = useAuth();
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [filterCity, setFilterCity] = useState<string>('all');
+  const [filterStaff, setFilterStaff] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const { profile, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (profile?.branch_id) {
-      fetchLeads();
+    if (profile?.branch_id || isAdmin) {
+      fetchData();
     }
-  }, [profile]);
+  }, [profile, isAdmin]);
 
-  const fetchLeads = async () => {
-    const { data } = await supabase
-      .from('leads')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const fetchData = async () => {
+    const [leadsRes, branchesRes, profilesRes] = await Promise.all([
+      supabase.from('leads').select('*').order('created_at', { ascending: false }),
+      supabase.from('branches').select('*'),
+      supabase.from('profiles').select('id, user_id, full_name'),
+    ]);
     
-    if (data) setLeads(data);
+    if (leadsRes.data) setLeads(leadsRes.data);
+    if (branchesRes.data) setBranches(branchesRes.data);
+    if (profilesRes.data) setStaffProfiles(profilesRes.data);
   };
 
-  const filteredLeads = leads.filter(lead =>
+  const getCityForBranch = (branchId: string) => {
+    return branches.find(b => b.id === branchId)?.city || 'Unknown';
+  };
+
+  const getStaffName = (userId: string | null) => {
+    if (!userId) return null;
+    return staffProfiles.find(p => p.user_id === userId)?.full_name || 'Unknown';
+  };
+
+  // Filter leads based on user role and filters
+  let filteredLeads = leads;
+  
+  // Non-admin users can only see leads from their branch
+  if (!isAdmin && profile?.branch_id) {
+    filteredLeads = filteredLeads.filter(lead => lead.branch_id === profile.branch_id);
+  }
+
+  // Apply city filter (admin only)
+  if (isAdmin && filterCity !== 'all') {
+    filteredLeads = filteredLeads.filter(lead => lead.branch_id === filterCity);
+  }
+
+  // Apply staff filter (admin only)
+  if (isAdmin && filterStaff !== 'all') {
+    filteredLeads = filteredLeads.filter(lead => lead.assigned_to === filterStaff);
+  }
+
+  // Apply search filter
+  filteredLeads = filteredLeads.filter(lead =>
     lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     lead.phone?.includes(searchQuery)
@@ -64,21 +117,73 @@ export default function Leads() {
           <h1 className="text-2xl font-bold text-foreground">Leads</h1>
           <p className="text-muted-foreground text-sm">{filteredLeads.length} leads in your pipeline</p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)} className="shadow-lg shadow-primary/20">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Lead
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Lead
+          </Button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, email, or phone..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 bg-card"
-        />
+      {/* Search and Filters */}
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          {isAdmin && (
+            <Button 
+              variant={showFilters ? "secondary" : "outline"} 
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+          )}
+        </div>
+
+        {/* Admin Filters */}
+        {isAdmin && showFilters && (
+          <div className="flex gap-3 p-3 bg-muted/50 rounded-lg">
+            <Select value={filterCity} onValueChange={setFilterCity}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Filter by City" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cities</SelectItem>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.city}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStaff} onValueChange={setFilterStaff}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by Staff" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Staff</SelectItem>
+                {staffProfiles.map((p) => (
+                  <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || 'Unknown'}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button variant="ghost" size="sm" onClick={() => { setFilterCity('all'); setFilterStaff('all'); }}>
+              Clear
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Leads List */}
@@ -96,6 +201,8 @@ export default function Leads() {
         ) : (
           filteredLeads.map((lead) => {
             const status = statusConfig[lead.status] || statusConfig.new;
+            const city = getCityForBranch(lead.branch_id);
+            const assignedTo = getStaffName(lead.assigned_to);
             
             return (
               <Card key={lead.id} className="hover:shadow-md transition-all duration-200 group">
@@ -103,7 +210,7 @@ export default function Leads() {
                   <div className="flex items-start justify-between gap-4">
                     {/* Lead Info */}
                     <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <span className="text-sm font-semibold text-primary">
                           {lead.name.charAt(0).toUpperCase()}
                         </span>
@@ -143,6 +250,14 @@ export default function Leads() {
                               via {lead.source}
                             </Badge>
                           )}
+                          {isAdmin && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {city}
+                            </Badge>
+                          )}
+                          {assignedTo && (
+                            <span className="text-[10px]">→ {assignedTo}</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -162,7 +277,13 @@ export default function Leads() {
       <AddLeadDialog 
         open={isAddDialogOpen} 
         onOpenChange={setIsAddDialogOpen}
-        onSuccess={fetchLeads}
+        onSuccess={fetchData}
+      />
+      
+      <BulkImportDialog
+        open={isBulkImportOpen}
+        onOpenChange={setIsBulkImportOpen}
+        onSuccess={fetchData}
       />
     </div>
   );

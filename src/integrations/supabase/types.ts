@@ -105,6 +105,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           branch_id: string | null
+          can_edit_properties: boolean | null
           can_view_owners: boolean
           created_at: string
           email: string | null
@@ -119,6 +120,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           branch_id?: string | null
+          can_edit_properties?: boolean | null
           can_view_owners?: boolean
           created_at?: string
           email?: string | null
@@ -133,6 +135,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           branch_id?: string | null
+          can_edit_properties?: boolean | null
           can_view_owners?: boolean
           created_at?: string
           email?: string | null
@@ -345,6 +348,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      whatsapp_config: {
+        Row: {
+          api_key: string | null
+          branch_id: string | null
+          business_name: string | null
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          phone_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          api_key?: string | null
+          branch_id?: string | null
+          business_name?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          phone_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          api_key?: string | null
+          branch_id?: string | null
+          business_name?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          phone_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_config_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_templates: {
         Row: {
