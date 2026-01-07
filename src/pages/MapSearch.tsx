@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation, Phone } from 'lucide-react';
+import { Navigation, Phone, Search, MapPin, Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -33,6 +34,12 @@ interface PropertyType {
   name: string;
 }
 
+interface SearchResult {
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
 function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
@@ -48,12 +55,27 @@ export default function MapSearch() {
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const { profile } = useAuth();
 
   useEffect(() => {
     fetchPropertyTypes();
     fetchProperties();
-  }, [radius, selectedType, priceRange, profile]);
+  }, [radius, selectedType, priceRange, profile, center]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchPropertyTypes = async () => {
     const { data } = await supabase.from('property_types').select('id, name');
@@ -61,7 +83,6 @@ export default function MapSearch() {
   };
 
   const fetchProperties = async () => {
-    // Using raw coordinates since PostGIS spatial query would require server-side function
     let query = supabase
       .from('properties')
       .select('id, title, address, price, property_type_id, location')
@@ -80,7 +101,6 @@ export default function MapSearch() {
     const { data } = await query;
     
     if (data) {
-      // Filter by radius client-side using Haversine formula
       const filtered: Property[] = [];
       for (const p of data) {
         if (!p.location) continue;
@@ -107,7 +127,7 @@ export default function MapSearch() {
   };
 
   const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -118,6 +138,28 @@ export default function MapSearch() {
     return R * c;
   };
 
+  const searchPlace = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`
+      );
+      const data = await response.json();
+      setSearchResults(data);
+      setShowResults(true);
+    } catch (error) {
+      console.error('Search error:', error);
+    }
+    setIsSearching(false);
+  };
+
+  const selectPlace = (result: SearchResult) => {
+    setCenter([parseFloat(result.lat), parseFloat(result.lon)]);
+    setSearchQuery(result.display_name);
+    setShowResults(false);
+  };
+
   const openDirections = (lat: number, lng: number) => {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
@@ -125,14 +167,54 @@ export default function MapSearch() {
   return (
     <div className="h-full flex flex-col">
       {/* Filters */}
-      <Card className="m-4 mb-0">
+      <Card className="m-4 mb-0 border-border">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Search Properties</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-primary" />
+            Search Properties
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Place Search */}
+          <div ref={searchRef} className="relative">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search for a place..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchPlace()}
+                  className="pl-10"
+                />
+              </div>
+              <Button onClick={searchPlace} disabled={isSearching}>
+                {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+              </Button>
+            </div>
+            
+            {/* Search Results Dropdown */}
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {searchResults.map((result, index) => (
+                  <button
+                    key={index}
+                    className="w-full px-4 py-3 text-left hover:bg-muted/50 text-sm border-b border-border last:border-b-0"
+                    onClick={() => selectPlace(result)}
+                  >
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{result.display_name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div>
-            <label className="text-sm font-medium mb-2 block">
-              Radius: {radius[0]} km
+            <label className="text-sm font-medium mb-2 block text-foreground">
+              Search Radius: <span className="text-primary font-semibold">{radius[0]} km</span>
             </label>
             <Slider
               value={radius}
@@ -191,11 +273,20 @@ export default function MapSearch() {
             center={center}
             radius={radius[0] * 1000}
             pathOptions={{
-              color: 'hsl(161, 93%, 30%)',
-              fillColor: 'hsl(161, 93%, 30%)',
+              color: 'hsl(142, 76%, 36%)',
+              fillColor: 'hsl(142, 76%, 36%)',
               fillOpacity: 0.1,
             }}
           />
+
+          {/* Center marker */}
+          <Marker position={center}>
+            <Popup>
+              <div className="text-center p-1">
+                <strong>Search Center</strong>
+              </div>
+            </Popup>
+          </Marker>
 
           {/* Property markers */}
           {properties.map(property => (
@@ -225,7 +316,7 @@ export default function MapSearch() {
       </div>
 
       <p className="text-center text-sm text-muted-foreground pb-4">
-        {properties.length} properties found within {radius[0]}km
+        <span className="font-semibold text-primary">{properties.length}</span> properties found within {radius[0]}km
       </p>
     </div>
   );
