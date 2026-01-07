@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GripVertical, User, Phone } from 'lucide-react';
+import { User, Phone } from 'lucide-react';
+import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 
 interface Lead {
   id: string;
@@ -14,6 +16,7 @@ interface Lead {
   pipeline: string | null;
 }
 
+const allStages = ['new', 'contacted', 'qualified', 'site_visit_scheduled', 'negotiating', 'closed_won', 'closed_lost'];
 const opsStages = ['new', 'contacted', 'qualified', 'site_visit_scheduled'];
 const salesStages = ['site_visit_scheduled', 'negotiating', 'closed_won', 'closed_lost'];
 
@@ -27,10 +30,89 @@ const stageLabels: Record<string, string> = {
   closed_lost: 'Lost',
 };
 
+const stageColors: Record<string, string> = {
+  new: 'bg-blue-500/10 text-blue-600',
+  contacted: 'bg-yellow-500/10 text-yellow-600',
+  qualified: 'bg-purple-500/10 text-purple-600',
+  site_visit_scheduled: 'bg-primary/10 text-primary',
+  negotiating: 'bg-orange-500/10 text-orange-600',
+  closed_won: 'bg-green-500/10 text-green-600',
+  closed_lost: 'bg-destructive/10 text-destructive',
+};
+
+function DraggableCard({ lead }: { lead: Lead }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: lead.id,
+    data: lead,
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.8 : 1,
+  } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`p-3 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors cursor-grab active:cursor-grabbing ${isDragging ? 'shadow-lg' : ''}`}
+    >
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <span className="text-xs font-semibold text-primary">{lead.name.charAt(0)}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-foreground truncate text-sm">{lead.name}</p>
+          {lead.phone && (
+            <a href={`tel:${lead.phone}`} className="text-xs text-primary flex items-center gap-1 mt-0.5">
+              <Phone className="h-3 w-3" />
+              {lead.phone}
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DroppableColumn({ stage, leads }: { stage: string; leads: Lead[] }) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage });
+
+  return (
+    <div className="w-64 flex-shrink-0 flex flex-col h-full">
+      <Card className={`flex-1 flex flex-col ${isOver ? 'ring-2 ring-primary' : ''}`}>
+        <CardHeader className="pb-2 shrink-0">
+          <CardTitle className="text-sm font-medium flex items-center justify-between">
+            <span className={`px-2 py-0.5 rounded ${stageColors[stage]}`}>{stageLabels[stage]}</span>
+            <Badge variant="secondary" className="ml-2">{leads.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent ref={setNodeRef} className="flex-1 overflow-y-auto space-y-2 min-h-[200px]">
+          {leads.map(lead => (
+            <DraggableCard key={lead.id} lead={lead} />
+          ))}
+          {leads.length === 0 && (
+            <div className="flex items-center justify-center h-24 text-muted-foreground text-sm border-2 border-dashed border-border rounded-lg">
+              Drop here
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function Pipeline() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activeTab, setActiveTab] = useState('ops');
   const { profile } = useAuth();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   useEffect(() => {
     if (profile?.branch_id) {
@@ -43,24 +125,31 @@ export default function Pipeline() {
       .from('leads')
       .select('id, name, phone, status, pipeline')
       .order('created_at', { ascending: false });
-    
     if (data) setLeads(data);
   };
 
-  const updateLeadStatus = async (leadId: string, newStatus: 'new' | 'contacted' | 'qualified' | 'site_visit_scheduled' | 'negotiating' | 'closed_won' | 'closed_lost') => {
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const newStatus = String(over.id);
+    const leadId = String(active.id);
+    if (!allStages.includes(newStatus)) return;
+
+    // Optimistic update
+    setLeads(prev => prev.map(lead => 
+      lead.id === leadId ? { ...lead, status: newStatus } : lead
+    ));
+
     await supabase
       .from('leads')
-      .update({ status: newStatus })
+      .update({ status: newStatus as any })
       .eq('id', leadId);
-    
-    fetchLeads();
   };
 
-  const getLeadsByStage = (stage: string) => 
-    leads.filter(lead => lead.status === stage);
+  const getLeadsByStage = (stage: string) => leads.filter(lead => lead.status === stage);
 
   const stages = activeTab === 'ops' ? opsStages : salesStages;
-
   const canAccess = profile?.pipeline_access === 'both' || profile?.pipeline_access === activeTab;
 
   return (
@@ -69,72 +158,21 @@ export default function Pipeline() {
         <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger 
-            value="ops"
-            disabled={profile?.pipeline_access === 'sales'}
-          >
-            Operational
-          </TabsTrigger>
-          <TabsTrigger 
-            value="sales"
-            disabled={profile?.pipeline_access === 'ops'}
-          >
-            Sales
-          </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <TabsList className="grid w-full grid-cols-2 mb-4 shrink-0">
+          <TabsTrigger value="ops" disabled={profile?.pipeline_access === 'sales'}>Operational</TabsTrigger>
+          <TabsTrigger value="sales" disabled={profile?.pipeline_access === 'ops'}>Sales</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeTab} className="flex-1 overflow-x-auto">
+        <TabsContent value={activeTab} className="flex-1 overflow-hidden">
           {canAccess ? (
-            <div className="flex gap-4 min-w-max h-full pb-4">
-              {stages.map(stage => (
-                <div key={stage} className="w-72 flex-shrink-0">
-                  <Card className="h-full">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium flex items-center justify-between">
-                        {stageLabels[stage]}
-                        <Badge variant="secondary" className="ml-2">
-                          {getLeadsByStage(stage).length}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 overflow-y-auto max-h-[calc(100vh-280px)]">
-                      {getLeadsByStage(stage).map(lead => (
-                        <div
-                          key={lead.id}
-                          className="p-3 bg-muted/30 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <GripVertical className="h-4 w-4 text-muted-foreground" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-foreground truncate flex items-center gap-2">
-                                <User className="h-3 w-3" />
-                                {lead.name}
-                              </p>
-                              {lead.phone && (
-                                <a 
-                                  href={`tel:${lead.phone}`}
-                                  className="text-xs text-primary flex items-center gap-1 mt-1"
-                                >
-                                  <Phone className="h-3 w-3" />
-                                  {lead.phone}
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {getLeadsByStage(stage).length === 0 && (
-                        <p className="text-center text-muted-foreground text-sm py-8">
-                          No leads
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <div className="flex gap-4 h-full overflow-x-auto pb-4">
+                {stages.map(stage => (
+                  <DroppableColumn key={stage} stage={stage} leads={getLeadsByStage(stage)} />
+                ))}
+              </div>
+            </DndContext>
           ) : (
             <div className="flex items-center justify-center h-64">
               <p className="text-muted-foreground">You don't have access to this pipeline.</p>
