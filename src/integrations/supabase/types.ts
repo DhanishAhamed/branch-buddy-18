@@ -38,6 +38,80 @@ export type Database = {
         }
         Relationships: []
       }
+      call_notes: {
+        Row: {
+          created_at: string
+          customer_response: string | null
+          followup_at: string | null
+          id: string
+          lead_id: string
+          notes: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_response?: string | null
+          followup_at?: string | null
+          id?: string
+          lead_id: string
+          notes: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_response?: string | null
+          followup_at?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_properties: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          property_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          property_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_properties_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -50,6 +124,7 @@ export type Database = {
           phone: string | null
           pipeline: string | null
           property_id: string | null
+          site_visit_time: string | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
           updated_at: string
@@ -65,6 +140,7 @@ export type Database = {
           phone?: string | null
           pipeline?: string | null
           property_id?: string | null
+          site_visit_time?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
@@ -80,6 +156,7 @@ export type Database = {
           phone?: string | null
           pipeline?: string | null
           property_id?: string | null
+          site_visit_time?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
@@ -97,6 +174,50 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_stages: {
+        Row: {
+          branch_id: string | null
+          color: string
+          created_at: string
+          id: string
+          is_system: boolean
+          label: string
+          name: string
+          pipeline: string
+          position: number
+        }
+        Insert: {
+          branch_id?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          label: string
+          name: string
+          pipeline?: string
+          position?: number
+        }
+        Update: {
+          branch_id?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          label?: string
+          name?: string
+          pipeline?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -1396,6 +1517,8 @@ export type Database = {
         | "negotiating"
         | "closed_won"
         | "closed_lost"
+        | "not_interested"
+        | "need_followup"
       pipeline_access: "sales" | "ops" | "both"
       portal_type: "commercial" | "residential" | "rentals"
       property_status:
@@ -1548,6 +1671,8 @@ export const Constants = {
         "negotiating",
         "closed_won",
         "closed_lost",
+        "not_interested",
+        "need_followup",
       ],
       pipeline_access: ["sales", "ops", "both"],
       portal_type: ["commercial", "residential", "rentals"],

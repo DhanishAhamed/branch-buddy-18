@@ -252,7 +252,7 @@ export default function MapSearch() {
       {/* Left Side - Map & Filters */}
       <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col h-full">
         {/* Filters */}
-        <Card className="m-4 mb-0 border-border">
+        <Card className="m-4 mb-0 border-border relative z-[1000]">
           <CardContent className="p-4 space-y-4">
             {/* Place Search */}
             <div ref={searchRef} className="relative">

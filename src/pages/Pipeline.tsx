@@ -7,6 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { User, Phone } from 'lucide-react';
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { StatusTransitionDialog } from '@/components/pipeline/StatusTransitionDialog';
+import { LeadDetailModal } from '@/components/pipeline/LeadDetailModal';
+import { useToast } from '@/hooks/use-toast';
 
 interface Lead {
   id: string;
@@ -16,31 +19,22 @@ interface Lead {
   pipeline: string | null;
 }
 
-const allStages = ['new', 'contacted', 'qualified', 'site_visit_scheduled', 'negotiating', 'closed_won', 'closed_lost'];
-const opsStages = ['new', 'contacted', 'qualified', 'site_visit_scheduled'];
-const salesStages = ['site_visit_scheduled', 'negotiating', 'closed_won', 'closed_lost'];
+interface Property {
+  id: string;
+  title: string;
+  address: string | null;
+}
 
-const stageLabels: Record<string, string> = {
-  new: 'New',
-  contacted: 'Contacted',
-  qualified: 'Qualified',
-  site_visit_scheduled: 'Site Visit',
-  negotiating: 'Negotiating',
-  closed_won: 'Won',
-  closed_lost: 'Lost',
-};
+interface PipelineStage {
+  id: string;
+  name: string;
+  label: string;
+  pipeline: string;
+  color: string;
+  position: number;
+}
 
-const stageColors: Record<string, string> = {
-  new: 'bg-blue-500/10 text-blue-600',
-  contacted: 'bg-yellow-500/10 text-yellow-600',
-  qualified: 'bg-purple-500/10 text-purple-600',
-  site_visit_scheduled: 'bg-primary/10 text-primary',
-  negotiating: 'bg-orange-500/10 text-orange-600',
-  closed_won: 'bg-green-500/10 text-green-600',
-  closed_lost: 'bg-destructive/10 text-destructive',
-};
-
-function DraggableCard({ lead }: { lead: Lead }) {
+function DraggableCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: lead,
@@ -58,6 +52,12 @@ function DraggableCard({ lead }: { lead: Lead }) {
       style={style}
       {...listeners}
       {...attributes}
+      onClick={(e) => {
+        if (!isDragging) {
+          e.stopPropagation();
+          onClick();
+        }
+      }}
       className={`p-3 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors cursor-grab active:cursor-grabbing ${isDragging ? 'shadow-lg' : ''}`}
     >
       <div className="flex items-center gap-2">
@@ -66,33 +66,27 @@ function DraggableCard({ lead }: { lead: Lead }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-foreground truncate text-sm">{lead.name}</p>
-          {lead.phone && (
-            <a href={`tel:${lead.phone}`} className="text-xs text-primary flex items-center gap-1 mt-0.5">
-              <Phone className="h-3 w-3" />
-              {lead.phone}
-            </a>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-function DroppableColumn({ stage, leads }: { stage: string; leads: Lead[] }) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage });
+function DroppableColumn({ stage, leads, onCardClick }: { stage: PipelineStage; leads: Lead[]; onCardClick: (id: string) => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.name });
 
   return (
     <div className="w-64 flex-shrink-0 flex flex-col h-full">
       <Card className={`flex-1 flex flex-col ${isOver ? 'ring-2 ring-primary' : ''}`}>
         <CardHeader className="pb-2 shrink-0">
           <CardTitle className="text-sm font-medium flex items-center justify-between">
-            <span className={`px-2 py-0.5 rounded ${stageColors[stage]}`}>{stageLabels[stage]}</span>
+            <span className={`px-2 py-0.5 rounded ${stage.color}`}>{stage.label}</span>
             <Badge variant="secondary" className="ml-2">{leads.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent ref={setNodeRef} className="flex-1 overflow-y-auto space-y-2 min-h-[200px]">
           {leads.map(lead => (
-            <DraggableCard key={lead.id} lead={lead} />
+            <DraggableCard key={lead.id} lead={lead} onClick={() => onCardClick(lead.id)} />
           ))}
           {leads.length === 0 && (
             <div className="flex items-center justify-center h-24 text-muted-foreground text-sm border-2 border-dashed border-border rounded-lg">
@@ -107,18 +101,49 @@ function DroppableColumn({ stage, leads }: { stage: string; leads: Lead[] }) {
 
 export default function Pipeline() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [activeTab, setActiveTab] = useState('ops');
   const { profile } = useAuth();
+  const { toast } = useToast();
+
+  // Transition dialog state
+  const [transitionDialog, setTransitionDialog] = useState<{
+    open: boolean;
+    leadId: string;
+    leadName: string;
+    fromStatus: string;
+    toStatus: string;
+  }>({ open: false, leadId: '', leadName: '', fromStatus: '', toStatus: '' });
+
+  // Lead detail modal state
+  const [detailModal, setDetailModal] = useState<{ open: boolean; leadId: string | null }>({
+    open: false,
+    leadId: null,
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   useEffect(() => {
+    fetchStages();
+    fetchProperties();
+  }, []);
+
+  useEffect(() => {
     if (profile?.branch_id) {
       fetchLeads();
     }
   }, [profile]);
+
+  const fetchStages = async () => {
+    const { data } = await supabase
+      .from('pipeline_stages')
+      .select('*')
+      .order('position');
+    if (data) setStages(data);
+  };
 
   const fetchLeads = async () => {
     const { data } = await supabase
@@ -128,28 +153,112 @@ export default function Pipeline() {
     if (data) setLeads(data);
   };
 
+  const fetchProperties = async () => {
+    const { data } = await supabase
+      .from('properties')
+      .select('id, title, address')
+      .eq('status', 'available');
+    if (data) setProperties(data);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
     const newStatus = String(over.id);
     const leadId = String(active.id);
-    if (!allStages.includes(newStatus)) return;
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead) return;
 
-    // Optimistic update
-    setLeads(prev => prev.map(lead => 
-      lead.id === leadId ? { ...lead, status: newStatus } : lead
-    ));
+    const fromStatus = lead.status;
+    const allStageNames = stages.map(s => s.name);
+    if (!allStageNames.includes(newStatus)) return;
+
+    // Check if we need a transition dialog
+    const needsDialog = ['contacted', 'qualified', 'site_visit_scheduled', 'need_followup'].includes(newStatus);
+
+    if (needsDialog) {
+      setTransitionDialog({
+        open: true,
+        leadId,
+        leadName: lead.name,
+        fromStatus,
+        toStatus: newStatus,
+      });
+    } else {
+      // Direct update without dialog
+      setLeads(prev => prev.map(l => 
+        l.id === leadId ? { ...l, status: newStatus } : l
+      ));
+
+      await supabase
+        .from('leads')
+        .update({ status: newStatus as any })
+        .eq('id', leadId);
+    }
+  };
+
+  const handleTransitionConfirm = async (data: {
+    callNotes: string;
+    customerResponse?: string;
+    followupAt?: Date;
+    propertyId?: string;
+    siteVisitTime?: Date;
+  }) => {
+    const { leadId, toStatus } = transitionDialog;
+
+    // Update lead status
+    const leadUpdate: any = { status: toStatus };
+    if (data.siteVisitTime) {
+      leadUpdate.site_visit_time = data.siteVisitTime.toISOString();
+    }
 
     await supabase
       .from('leads')
-      .update({ status: newStatus as any })
+      .update(leadUpdate)
       .eq('id', leadId);
+
+    // Add call note
+    if (data.callNotes) {
+      await supabase.from('call_notes').insert([{
+        lead_id: leadId,
+        user_id: profile?.user_id,
+        notes: data.callNotes,
+        customer_response: data.customerResponse || null,
+        followup_at: data.followupAt?.toISOString() || null,
+      }]);
+    }
+
+    // Link property if selected
+    if (data.propertyId) {
+      // Check if already exists, if not insert
+      const { data: existing } = await supabase
+        .from('lead_properties')
+        .select('id')
+        .eq('lead_id', leadId)
+        .eq('property_id', data.propertyId)
+        .maybeSingle();
+      
+      if (!existing) {
+        await supabase.from('lead_properties').insert([{
+          lead_id: leadId,
+          property_id: data.propertyId,
+        }]);
+      }
+    }
+
+    // Update local state
+    setLeads(prev => prev.map(l => 
+      l.id === leadId ? { ...l, status: toStatus } : l
+    ));
+
+    setTransitionDialog({ open: false, leadId: '', leadName: '', fromStatus: '', toStatus: '' });
+    toast({ title: 'Lead updated successfully' });
   };
 
-  const getLeadsByStage = (stage: string) => leads.filter(lead => lead.status === stage);
+  const getLeadsByStage = (stageName: string) => leads.filter(lead => lead.status === stageName);
 
-  const stages = activeTab === 'ops' ? opsStages : salesStages;
+  const currentStages = stages.filter(s => s.pipeline === activeTab);
   const canAccess = profile?.pipeline_access === 'both' || profile?.pipeline_access === activeTab;
 
   return (
@@ -168,8 +277,13 @@ export default function Pipeline() {
           {canAccess ? (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <div className="flex gap-4 h-full overflow-x-auto pb-4">
-                {stages.map(stage => (
-                  <DroppableColumn key={stage} stage={stage} leads={getLeadsByStage(stage)} />
+                {currentStages.map(stage => (
+                  <DroppableColumn 
+                    key={`${stage.pipeline}-${stage.name}`} 
+                    stage={stage} 
+                    leads={getLeadsByStage(stage.name)} 
+                    onCardClick={(id) => setDetailModal({ open: true, leadId: id })}
+                  />
                 ))}
               </div>
             </DndContext>
@@ -180,6 +294,22 @@ export default function Pipeline() {
           )}
         </TabsContent>
       </Tabs>
+
+      <StatusTransitionDialog
+        open={transitionDialog.open}
+        onOpenChange={(open) => setTransitionDialog(prev => ({ ...prev, open }))}
+        fromStatus={transitionDialog.fromStatus}
+        toStatus={transitionDialog.toStatus}
+        leadName={transitionDialog.leadName}
+        properties={properties}
+        onConfirm={handleTransitionConfirm}
+      />
+
+      <LeadDetailModal
+        open={detailModal.open}
+        onOpenChange={(open) => setDetailModal({ open, leadId: open ? detailModal.leadId : null })}
+        leadId={detailModal.leadId}
+      />
     </div>
   );
 }
