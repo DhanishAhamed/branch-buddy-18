@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save } from 'lucide-react';
+import { PipelineSettings } from '@/components/settings/PipelineSettings';
 
 interface Branch { id: string; name: string; city: string; }
 interface PropertyType { id: string; name: string; portal_type: string; }
@@ -130,6 +131,9 @@ export default function AdminSettings() {
         <Settings className="h-6 w-6 text-primary" />
         Settings
       </h1>
+
+      {/* Pipeline Settings */}
+      <PipelineSettings />
 
       {/* Branches */}
       <Card>
