@@ -55,8 +55,9 @@ function MapController({ center, zoom }: { center: [number, number]; zoom: numbe
 
 export default function MapSearch() {
   const [center, setCenter] = useState<[number, number]>([11.2588, 75.7804]); // Calicut
-  const [radius, setRadius] = useState([5]); // km
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [radius, setRadius] = useState([50]); // km - default to larger radius to show more properties
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<string>('all');
@@ -65,17 +66,20 @@ export default function MapSearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const { profile } = useAuth();
 
   useEffect(() => {
     fetchPropertyTypes();
+    fetchAllProperties();
   }, []);
 
+  // Filter properties whenever center, radius, type, or price changes
   useEffect(() => {
-    fetchProperties();
-  }, [radius, selectedType, priceRange, profile, center]);
+    filterProperties();
+  }, [center, radius, selectedType, priceRange, allProperties, hasSearched]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -92,35 +96,27 @@ export default function MapSearch() {
     if (data) setPropertyTypes(data);
   };
 
-  const fetchProperties = async () => {
-    let query = supabase
-      .from('properties')
-      .select('id, title, address, price, property_type_id, bedrooms, bathrooms, area_sqft, images, location')
-      .eq('status', 'available');
-
-    if (selectedType !== 'all') {
-      query = query.eq('property_type_id', selectedType);
-    }
-
-    if (priceRange !== 'all') {
-      const [min, max] = priceRange.split('-').map(Number);
-      if (min) query = query.gte('price', min);
-      if (max) query = query.lte('price', max);
-    }
-
-    const { data } = await query;
+  const fetchAllProperties = async () => {
+    // Use RPC to get properties with coordinates
+    const { data, error } = await supabase.rpc('get_properties_with_coords');
     
-    if (data) {
-      const filtered: Property[] = [];
-      for (const p of data) {
-        if (!p.location) continue;
-        const match = p.location?.toString().match(/POINT\(([^ ]+) ([^)]+)\)/);
-        if (match) {
-          const lng = parseFloat(match[1]);
-          const lat = parseFloat(match[2]);
-          const dist = haversineDistance(center[0], center[1], lat, lng);
-          if (dist <= radius[0]) {
-            filtered.push({
+    if (error) {
+      console.error('Error fetching properties:', error);
+      // Fallback: try regular query
+      const { data: fallbackData } = await supabase
+        .from('properties')
+        .select('id, title, address, price, property_type_id, bedrooms, bathrooms, area_sqft, images, location')
+        .eq('status', 'available');
+      
+      if (fallbackData) {
+        const props: Property[] = [];
+        for (const p of fallbackData) {
+          if (!p.location) continue;
+          const locStr = p.location?.toString();
+          // Try to parse as WKT
+          const match = locStr?.match(/POINT\(([^ ]+) ([^)]+)\)/);
+          if (match) {
+            props.push({
               id: p.id,
               title: p.title,
               address: p.address,
@@ -130,14 +126,64 @@ export default function MapSearch() {
               bathrooms: p.bathrooms,
               area_sqft: p.area_sqft,
               images: p.images,
-              lat,
-              lng,
+              lat: parseFloat(match[2]),
+              lng: parseFloat(match[1]),
             });
           }
         }
+        setAllProperties(props);
       }
-      setProperties(filtered);
+      return;
     }
+    
+    if (data) {
+      const props: Property[] = data
+        .filter((p: any) => p.lat !== null && p.lng !== null)
+        .map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          address: p.address,
+          price: p.price,
+          property_type_id: p.property_type_id,
+          bedrooms: p.bedrooms,
+          bathrooms: p.bathrooms,
+          area_sqft: p.area_sqft,
+          images: p.images,
+          lat: p.lat,
+          lng: p.lng,
+        }));
+      setAllProperties(props);
+    }
+  };
+
+  const filterProperties = () => {
+    let filtered = [...allProperties];
+
+    // Filter by property type
+    if (selectedType !== 'all') {
+      filtered = filtered.filter(p => p.property_type_id === selectedType);
+    }
+
+    // Filter by price range
+    if (priceRange !== 'all') {
+      const [min, max] = priceRange.split('-').map(Number);
+      filtered = filtered.filter(p => {
+        if (!p.price) return false;
+        if (min && p.price < min) return false;
+        if (max && p.price > max) return false;
+        return true;
+      });
+    }
+
+    // Filter by radius only if user has searched for a location
+    if (hasSearched) {
+      filtered = filtered.filter(p => {
+        const dist = haversineDistance(center[0], center[1], p.lat, p.lng);
+        return dist <= radius[0];
+      });
+    }
+
+    setFilteredProperties(filtered);
   };
 
   const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
