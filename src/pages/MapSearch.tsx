@@ -98,7 +98,7 @@ export default function MapSearch() {
 
   const fetchAllProperties = async () => {
     // Use RPC to get properties with coordinates
-    const { data, error } = await supabase.rpc('get_properties_with_coords');
+    const { data, error } = await (supabase.rpc as any)('get_properties_with_coords');
     
     if (error) {
       console.error('Error fetching properties:', error);
@@ -112,9 +112,9 @@ export default function MapSearch() {
         const props: Property[] = [];
         for (const p of fallbackData) {
           if (!p.location) continue;
-          const locStr = p.location?.toString();
+          const locStr = String(p.location);
           // Try to parse as WKT
-          const match = locStr?.match(/POINT\(([^ ]+) ([^)]+)\)/);
+          const match = locStr.match(/POINT\(([^ ]+) ([^)]+)\)/);
           if (match) {
             props.push({
               id: p.id,
@@ -136,7 +136,7 @@ export default function MapSearch() {
       return;
     }
     
-    if (data) {
+    if (data && Array.isArray(data)) {
       const props: Property[] = data
         .filter((p: any) => p.lat !== null && p.lng !== null)
         .map((p: any) => ({
@@ -234,6 +234,7 @@ export default function MapSearch() {
     setCenter([parseFloat(result.lat), parseFloat(result.lon)]);
     setSearchQuery(result.display_name.split(',')[0]);
     setShowResults(false);
+    setHasSearched(true);
   };
 
   const openDirections = (lat: number, lng: number) => {
@@ -364,7 +365,7 @@ export default function MapSearch() {
             </Marker>
 
             {/* Property markers */}
-            {properties.map(property => (
+            {filteredProperties.map(property => (
               <Marker 
                 key={property.id} 
                 position={[property.lat, property.lng]}
@@ -388,7 +389,7 @@ export default function MapSearch() {
         </div>
         
         <p className="text-center text-sm text-muted-foreground pb-4">
-          <span className="font-semibold text-primary">{properties.length}</span> properties found
+          <span className="font-semibold text-primary">{filteredProperties.length}</span> properties found
         </p>
       </div>
 
@@ -400,7 +401,7 @@ export default function MapSearch() {
             Properties in Area
           </h2>
           
-          {properties.length === 0 ? (
+          {filteredProperties.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <MapPin className="h-12 w-12 text-muted-foreground/30 mb-4" />
@@ -412,7 +413,7 @@ export default function MapSearch() {
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              {properties.map(property => (
+              {filteredProperties.map(property => (
                 <Card 
                   key={property.id} 
                   className={`overflow-hidden hover:shadow-lg transition-all cursor-pointer ${

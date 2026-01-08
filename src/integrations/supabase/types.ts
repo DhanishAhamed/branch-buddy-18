@@ -726,6 +726,22 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_properties_with_coords: {
+        Args: never
+        Returns: {
+          address: string
+          area_sqft: number
+          bathrooms: number
+          bedrooms: number
+          id: string
+          images: string[]
+          lat: number
+          lng: number
+          price: number
+          property_type_id: string
+          title: string
+        }[]
+      }
       get_user_branch_id: { Args: { _user_id: string }; Returns: string }
       gettransactionid: { Args: never; Returns: unknown }
       has_role: {
