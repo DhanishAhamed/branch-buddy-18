@@ -76,8 +76,15 @@ export function WorkspaceSwitcher({ collapsed }: WorkspaceSwitcherProps) {
             collapsed ? "justify-center" : "justify-start"
           )}
         >
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shrink-0">
-            <ActiveIcon className="h-5 w-5 text-primary-foreground" />
+          <div 
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor: activeWorkspace.primary_color || 'hsl(var(--primary))' }}
+          >
+            {activeWorkspace.logo_url ? (
+              <img src={activeWorkspace.logo_url} alt={activeWorkspace.name} className="w-6 h-6 object-contain" />
+            ) : (
+              <ActiveIcon className="h-5 w-5 text-white" />
+            )}
           </div>
           {!collapsed && (
             <>
@@ -108,14 +115,17 @@ export function WorkspaceSwitcher({ collapsed }: WorkspaceSwitcherProps) {
                 isActive && "bg-primary/10"
               )}
             >
-              <div className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center",
-                isActive ? "bg-primary" : "bg-muted"
-              )}>
-                <Icon className={cn(
-                  "h-4 w-4",
-                  isActive ? "text-primary-foreground" : "text-muted-foreground"
-                )} />
+              <div 
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ 
+                  backgroundColor: workspace.primary_color || (isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted))')
+                }}
+              >
+                {workspace.logo_url ? (
+                  <img src={workspace.logo_url} alt={workspace.name} className="w-5 h-5 object-contain" />
+                ) : (
+                  <Icon className="h-4 w-4 text-white" />
+                )}
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium">{workspace.name}</p>
