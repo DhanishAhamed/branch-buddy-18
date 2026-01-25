@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Shield, Plus, Trash2, MapPin } from 'lucide-react';
+import { Users, Shield, Plus, Trash2, MapPin, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { WorkspaceAssignDialog } from '@/components/admin/WorkspaceAssignDialog';
 
 interface Profile {
   id: string;
@@ -40,6 +41,8 @@ export default function AdminUsers() {
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+  const [selectedUserForWorkspace, setSelectedUserForWorkspace] = useState<Profile | null>(null);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
@@ -174,6 +177,19 @@ export default function AdminUsers() {
                     </SelectContent>
                   </Select>
 
+                  {/* Workspace Assignment */}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => { 
+                      setSelectedUserForWorkspace(profile); 
+                      setWorkspaceDialogOpen(true); 
+                    }}
+                  >
+                    <Building2 className="h-4 w-4 mr-1" />
+                    Workspaces
+                  </Button>
+
                   {/* Access Controls */}
                   <Button 
                     variant="outline" 
@@ -297,6 +313,17 @@ export default function AdminUsers() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Workspace Assignment Dialog */}
+      {selectedUserForWorkspace && (
+        <WorkspaceAssignDialog
+          open={workspaceDialogOpen}
+          onOpenChange={setWorkspaceDialogOpen}
+          userId={selectedUserForWorkspace.user_id}
+          userName={selectedUserForWorkspace.full_name}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 }
