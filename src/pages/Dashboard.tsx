@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ScheduleWidget } from '@/components/dashboard/ScheduleWidget';
-import { KPICards } from '@/components/dashboard/KPICards';
+import { SwipeableKPICards } from '@/components/dashboard/SwipeableKPICards';
 import { PerformanceChart } from '@/components/dashboard/PerformanceChart';
 import { RecentLeads } from '@/components/dashboard/RecentLeads';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -74,7 +74,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <KPICards key={`kpi-${refreshKey}`} />
+      <SwipeableKPICards key={`kpi-${refreshKey}`} />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
