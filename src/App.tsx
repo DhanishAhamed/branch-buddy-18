@@ -13,6 +13,7 @@ import PendingApproval from "./pages/PendingApproval";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Pipeline from "./pages/Pipeline";
+import PipelineV2 from "./pages/PipelineV2";
 import Properties from "./pages/Properties";
 import MapSearch from "./pages/MapSearch";
 import Chat from "./pages/Chat";
@@ -55,7 +56,8 @@ function AppRoutes() {
       {/* Protected Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
-      <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
+      <Route path="/pipeline" element={<ProtectedRoute><PipelineV2 /></ProtectedRoute>} />
+      <Route path="/pipeline-old" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
       <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
       <Route path="/map" element={<ProtectedRoute><MapSearch /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
