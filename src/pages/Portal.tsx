@@ -56,6 +56,39 @@ const portalConfig = {
   },
 };
 
+// Placeholder images for properties without images (Unsplash real estate photos)
+const placeholderImages = {
+  commercial: [
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1556761175-4b46a572b786?w=400&h=300&fit=crop',
+  ],
+  residential: [
+    'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop',
+  ],
+  rentals: [
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=400&h=300&fit=crop',
+  ],
+};
+
+// Get a consistent placeholder image based on property ID
+const getPlaceholderImage = (propertyId: string, portalType: string) => {
+  const images = placeholderImages[portalType as keyof typeof placeholderImages] || placeholderImages.residential;
+  // Use property ID to get consistent image
+  const index = propertyId.charCodeAt(0) % images.length;
+  return images[index];
+};
+
 interface PropertyCardProps {
   property: Property;
   config: typeof portalConfig.commercial;
@@ -67,7 +100,7 @@ interface PropertyCardProps {
 
 function PropertyCard({ property, config, type, formatPrice, onClick, isSold = false }: PropertyCardProps) {
   const sold = isSold || property.status === 'sold' || property.status === 'rented';
-  const firstImage = property.images?.[0];
+  const firstImage = property.images?.[0] || getPlaceholderImage(property.id, type);
 
   return (
     <Card 
@@ -76,17 +109,15 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
     >
       {/* Image */}
       <div className="relative h-40 overflow-hidden">
-        {firstImage ? (
-          <img 
-            src={firstImage} 
-            alt={property.title}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${sold ? 'grayscale' : ''}`}
-          />
-        ) : (
-          <div className={`h-full bg-gradient-to-br ${config.gradient} opacity-20 flex items-center justify-center`}>
-            <Building2 className="h-12 w-12 text-foreground/20" />
-          </div>
-        )}
+        <img 
+          src={firstImage} 
+          alt={property.title}
+          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${sold ? 'grayscale' : ''}`}
+          onError={(e) => {
+            // Fallback if image fails to load
+            (e.target as HTMLImageElement).src = getPlaceholderImage(property.id, type);
+          }}
+        />
         
         {/* Status Badge */}
         {sold && (
