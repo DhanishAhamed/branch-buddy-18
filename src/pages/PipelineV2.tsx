@@ -13,6 +13,7 @@ import {
 } from '@/components/kibo-ui/kanban';
 import { StatusTransitionDialog } from '@/components/pipeline/StatusTransitionDialog';
 import { LeadDetailModal } from '@/components/pipeline/LeadDetailModal';
+import { PipelineFilters } from '@/components/pipeline/PipelineFilters';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar, Phone, Mail } from 'lucide-react';
@@ -27,6 +28,7 @@ interface Lead {
   pipeline: string | null;
   created_at: string;
   assigned_to: string | null;
+  source: string | null;
 }
 
 interface Property {
@@ -52,6 +54,11 @@ interface KanbanColumn {
   stageName: string;
 }
 
+interface Profile {
+  user_id: string;
+  full_name: string | null;
+}
+
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -61,10 +68,19 @@ export default function PipelineV2() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [activeTab, setActiveTab] = useState('ops');
   const { profile, isAdmin } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
+
+  // Filter state
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({
+    from: null,
+    to: null,
+  });
 
   // Transition dialog state
   const [transitionDialog, setTransitionDialog] = useState<{
@@ -84,6 +100,7 @@ export default function PipelineV2() {
   useEffect(() => {
     fetchStages();
     fetchProperties();
+    fetchUsers();
   }, []);
 
   useEffect(() => {
@@ -104,7 +121,7 @@ export default function PipelineV2() {
   const fetchLeads = async () => {
     const { data } = await supabase
       .from('leads')
-      .select('id, name, phone, email, status, pipeline, created_at, assigned_to')
+      .select('id, name, phone, email, status, pipeline, created_at, assigned_to, source')
       .order('created_at', { ascending: false });
     if (data) setLeads(data);
   };
@@ -117,12 +134,54 @@ export default function PipelineV2() {
     if (data) setProperties(data);
   };
 
+  const fetchUsers = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('user_id, full_name');
+    if (data) setUsers(data);
+  };
+
+  // Get unique sources from leads
+  const sources = useMemo(() => {
+    const sourceSet = new Set(leads.map((l) => l.source).filter(Boolean) as string[]);
+    return Array.from(sourceSet);
+  }, [leads]);
+
+  // Filter leads
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      // Source filter
+      if (selectedSource && lead.source !== selectedSource) return false;
+
+      // User filter
+      if (selectedUser === 'unassigned' && lead.assigned_to !== null) return false;
+      if (selectedUser && selectedUser !== 'unassigned' && lead.assigned_to !== selectedUser) return false;
+
+      // Date range filter
+      const leadDate = new Date(lead.created_at);
+      if (dateRange.from && leadDate < dateRange.from) return false;
+      if (dateRange.to) {
+        const endOfDay = new Date(dateRange.to);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (leadDate > endOfDay) return false;
+      }
+
+      return true;
+    });
+  }, [leads, selectedSource, selectedUser, dateRange]);
+
+  const clearFilters = () => {
+    setSelectedSource(null);
+    setSelectedUser(null);
+    setDateRange({ from: null, to: null });
+  };
+
   // Convert stages to Kanban columns
   const currentStages = stages.filter(s => s.pipeline === activeTab);
   
   const kanbanColumns: KanbanColumn[] = useMemo(() => 
     currentStages.map(stage => ({
-      id: stage.name, // Use stage.name as the column ID for drop target
+      id: stage.name,
       name: stage.name,
       color: stage.color,
       label: stage.label,
@@ -132,7 +191,7 @@ export default function PipelineV2() {
   );
 
   const getLeadsByColumn = (columnId: string) => 
-    leads.filter(lead => lead.status === columnId && (lead.pipeline === activeTab || lead.pipeline === null));
+    filteredLeads.filter(lead => lead.status === columnId && (lead.pipeline === activeTab || lead.pipeline === null));
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -230,13 +289,70 @@ export default function PipelineV2() {
 
   const canAccess = profile?.pipeline_access === 'both' || profile?.pipeline_access === activeTab;
 
+  // Drag overlay content renderer
+  const renderDragOverlay = (lead: Lead) => (
+    <div className="p-3 bg-card rounded-lg border border-primary/50 shadow-xl min-w-[260px]">
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                {lead.name.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-medium text-sm text-foreground truncate">
+                {lead.name}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {(lead.phone || lead.email) && (
+          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+            {lead.phone && (
+              <div className="flex items-center gap-1.5">
+                <Phone className="h-3 w-3" />
+                <span className="truncate">{lead.phone}</span>
+              </div>
+            )}
+            {lead.email && (
+              <div className="flex items-center gap-1.5">
+                <Mail className="h-3 w-3" />
+                <span className="truncate">{lead.email}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Calendar className="h-3 w-3" />
+          <span>{dateFormatter.format(new Date(lead.created_at))}</span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-4 md:p-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
-        <Badge variant="outline" className="text-xs">
-          {leads.filter(l => l.pipeline === activeTab || l.pipeline === null).length} leads
-        </Badge>
+        <div className="flex items-center gap-2">
+          <PipelineFilters
+            sources={sources}
+            users={users}
+            selectedSource={selectedSource}
+            selectedUser={selectedUser}
+            dateRange={dateRange}
+            onSourceChange={setSelectedSource}
+            onUserChange={setSelectedUser}
+            onDateRangeChange={setDateRange}
+            onClearFilters={clearFilters}
+          />
+          <Badge variant="outline" className="text-xs">
+            {filteredLeads.filter(l => l.pipeline === activeTab || l.pipeline === null).length} leads
+          </Badge>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
@@ -249,9 +365,10 @@ export default function PipelineV2() {
           {canAccess ? (
             <KanbanProvider
               columns={kanbanColumns}
-              items={leads}
+              items={filteredLeads}
               setItems={setLeads}
               onDragEnd={handleDragEnd}
+              dragOverlayContent={renderDragOverlay}
             >
               {(column) => (
                 <KanbanBoard key={column.id} id={column.id}>

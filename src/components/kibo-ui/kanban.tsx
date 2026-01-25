@@ -25,7 +25,7 @@ interface KanbanColumn {
 interface KanbanContextValue {
   columns: KanbanColumn[];
   activeId: string | null;
-  onDragEnd?: (event: DragEndEvent) => void;
+  activeItem: any | null;
 }
 
 const KanbanContext = createContext<KanbanContextValue | null>(null);
@@ -46,36 +46,43 @@ interface KanbanProviderProps<TColumn extends KanbanColumn, TItem> {
   setItems: React.Dispatch<React.SetStateAction<TItem[]>>;
   onDragEnd?: (event: DragEndEvent) => void;
   className?: string;
+  dragOverlayContent?: (item: TItem) => React.ReactNode;
 }
 
-function KanbanProvider<TColumn extends KanbanColumn, TItem>({
+function KanbanProvider<TColumn extends KanbanColumn, TItem extends { id: string }>({
   children,
   columns,
   items,
   setItems,
   onDragEnd,
   className,
+  dragOverlayContent,
 }: KanbanProviderProps<TColumn, TItem>) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<TItem | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
-  }, []);
+    const id = String(event.active.id);
+    setActiveId(id);
+    const item = items.find((i) => i.id === id);
+    setActiveItem(item || null);
+  }, [items]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setActiveId(null);
+      setActiveItem(null);
       onDragEnd?.(event);
     },
     [onDragEnd]
   );
 
   return (
-    <KanbanContext.Provider value={{ columns, activeId, onDragEnd }}>
+    <KanbanContext.Provider value={{ columns, activeId, activeItem }}>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -90,6 +97,16 @@ function KanbanProvider<TColumn extends KanbanColumn, TItem>({
         >
           {columns.map((column) => children(column))}
         </div>
+        <DragOverlay dropAnimation={{
+          duration: 200,
+          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+        }}>
+          {activeId && activeItem && dragOverlayContent ? (
+            <div className="shadow-2xl ring-2 ring-primary/30 rounded-lg rotate-2 scale-105">
+              {dragOverlayContent(activeItem)}
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </KanbanContext.Provider>
   );
@@ -150,6 +167,8 @@ function KanbanCards<TItem extends { id: string }>({
   items,
   className,
 }: KanbanCardsProps<TItem>) {
+  const { activeId } = useKanban();
+  
   return (
     <div
       className={cn(
@@ -158,7 +177,12 @@ function KanbanCards<TItem extends { id: string }>({
       )}
     >
       {items.map((item) => (
-        <React.Fragment key={item.id}>{children(item)}</React.Fragment>
+        <div 
+          key={item.id}
+          className={cn(activeId === item.id && "opacity-40")}
+        >
+          {children(item)}
+        </div>
       ))}
       {items.length === 0 && (
         <div className="flex items-center justify-center h-24 text-muted-foreground text-sm border-2 border-dashed border-border rounded-lg bg-muted/20">
@@ -189,7 +213,6 @@ function KanbanCard({ children, id, name, onClick, className }: KanbanCardProps)
     ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
         zIndex: isDragging ? 50 : "auto",
-        opacity: isDragging ? 0.8 : 1,
       }
     : undefined;
 
@@ -207,7 +230,7 @@ function KanbanCard({ children, id, name, onClick, className }: KanbanCardProps)
       }}
       className={cn(
         "p-3 bg-card rounded-lg border border-border hover:border-primary/50 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing",
-        isDragging && "shadow-lg ring-2 ring-primary/20",
+        isDragging && "opacity-0",
         className
       )}
     >
