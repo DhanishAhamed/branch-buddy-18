@@ -2,6 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { BottomNav } from './BottomNav';
+import { ThemeToggle } from './ThemeToggle';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Loader2 } from 'lucide-react';
 
@@ -28,9 +29,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         
         <div className="flex-1 flex flex-col">
           {!isMobile && (
-            <header className="h-14 flex items-center border-b border-border px-4 bg-card">
-              <SidebarTrigger />
-              <h1 className="ml-4 font-semibold text-foreground">Room4Calicut CRM</h1>
+            <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card">
+              <div className="flex items-center">
+                <SidebarTrigger />
+                <h1 className="ml-4 font-semibold text-foreground">Room4Calicut CRM</h1>
+              </div>
+              <ThemeToggle />
             </header>
           )}
           
