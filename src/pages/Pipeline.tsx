@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { User, Phone } from 'lucide-react';
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
@@ -105,6 +106,7 @@ export default function Pipeline() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [activeTab, setActiveTab] = useState('ops');
   const { profile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
 
   // Transition dialog state
@@ -134,8 +136,9 @@ export default function Pipeline() {
   useEffect(() => {
     if (profile?.branch_id) {
       fetchLeads();
+      fetchProperties();
     }
-  }, [profile]);
+  }, [profile, activeWorkspace]);
 
   const fetchStages = async () => {
     const { data } = await supabase

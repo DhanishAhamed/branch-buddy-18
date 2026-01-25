@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Plus, Search, Building2, MapPin, Bed, Bath, Maximize, Pencil } from 'lucide-react';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
 import { EditPropertyDialog } from '@/components/properties/EditPropertyDialog';
@@ -32,10 +33,11 @@ export default function Properties() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editProperty, setEditProperty] = useState<Property | null>(null);
   const { profile, isAdmin } = useAuth();
+  const { activeWorkspace } = useWorkspace();
 
   useEffect(() => {
     fetchProperties();
-  }, [profile]);
+  }, [profile, activeWorkspace]);
 
   const fetchProperties = async () => {
     const { data } = await supabase
