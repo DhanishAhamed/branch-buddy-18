@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar } from 'lucide-react';
+import { Calendar, CheckCircle2, MoreVertical, Plus } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -17,14 +17,16 @@ interface Task {
 export function ScheduleWidget() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [upcomingTask, setUpcomingTask] = useState<Task | null>(null);
   const { user } = useAuth();
   
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDays = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
 
   useEffect(() => {
     if (user) {
       fetchTasks();
+      fetchUpcomingTask();
     }
   }, [user, selectedDate]);
 
@@ -47,6 +49,21 @@ export function ScheduleWidget() {
     }
   };
 
+  const fetchUpcomingTask = async () => {
+    const { data } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('is_completed', false)
+      .gt('scheduled_at', new Date().toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(1);
+    
+    if (data && data.length > 0) {
+      setUpcomingTask(data[0]);
+    }
+  };
+
   const toggleTask = async (taskId: string, completed: boolean) => {
     await supabase
       .from('tasks')
@@ -59,16 +76,19 @@ export function ScheduleWidget() {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
+    <Card className="border-border/50 h-full">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
           <Calendar className="h-5 w-5 text-primary" />
-          Upcoming Schedule
+          Today's Schedule
         </CardTitle>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Calendar Strip */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex justify-between gap-1">
           {weekDays.map((day) => {
             const isSelected = isSameDay(day, selectedDate);
             const isToday = isSameDay(day, new Date());
@@ -77,18 +97,16 @@ export function ScheduleWidget() {
               <button
                 key={day.toISOString()}
                 onClick={() => setSelectedDate(day)}
-                className={`flex flex-col items-center justify-center min-w-[48px] h-16 rounded-xl transition-all ${
-                  isSelected 
+                className={`flex flex-col items-center justify-center flex-1 py-2 rounded-xl transition-all ${
+                  isSelected || isToday
                     ? 'bg-primary text-primary-foreground' 
-                    : isToday 
-                    ? 'bg-accent text-accent-foreground'
-                    : 'bg-muted/30 text-foreground hover:bg-muted/50'
+                    : 'text-foreground hover:bg-muted/50'
                 }`}
               >
-                <span className="text-xs font-medium">
+                <span className="text-[10px] font-medium uppercase">
                   {format(day, 'EEE')}
                 </span>
-                <span className={`text-lg font-bold ${isSelected ? '' : ''}`}>
+                <span className="text-lg font-bold">
                   {format(day, 'd')}
                 </span>
               </button>
@@ -96,45 +114,74 @@ export function ScheduleWidget() {
           })}
         </div>
 
-        {/* Tasks List */}
-        <div className="space-y-3">
+        {/* Tasks for selected day */}
+        <div className="min-h-[120px]">
           {tasks.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No tasks scheduled for this day
-            </p>
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <CheckCircle2 className="h-10 w-10 text-muted-foreground/30 mb-2" />
+              <p className="text-sm font-medium text-muted-foreground">
+                No tasks scheduled for this day
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                Enjoy your free time or catch up on emails!
+              </p>
+            </div>
           ) : (
-            tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-start gap-3 p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
-              >
-                <Checkbox
-                  checked={task.is_completed}
-                  onCheckedChange={(checked) => toggleTask(task.id, checked as boolean)}
-                  className="mt-1 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">
-                      {format(new Date(task.scheduled_at), 'HH:mm')}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(task.scheduled_at), 'MMM d')}
-                    </span>
+            <div className="space-y-2">
+              {tasks.slice(0, 2).map((task) => (
+                <div
+                  key={task.id}
+                  onClick={() => toggleTask(task.id, !task.is_completed)}
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    task.is_completed 
+                      ? 'bg-muted/30 border-border/50' 
+                      : 'bg-card border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <span>{format(new Date(task.scheduled_at), 'h:mm a')}</span>
                   </div>
-                  <p className={`font-medium ${task.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                  <p className={`text-sm font-medium ${task.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                     {task.title}
                   </p>
-                  {task.description && (
-                    <p className="text-sm text-muted-foreground truncate">
-                      {task.description}
-                    </p>
-                  )}
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
+
+        {/* Schedule Meeting Button */}
+        <Button variant="outline" className="w-full gap-2">
+          <Plus className="h-4 w-4" />
+          Schedule Meeting
+        </Button>
+
+        {/* Upcoming Next */}
+        {upcomingTask && (
+          <div className="pt-2 border-t border-border/50">
+            <p className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase mb-2">
+              Upcoming Next
+            </p>
+            <div className="flex items-start gap-3">
+              <div className="flex flex-col items-center bg-muted/30 rounded-lg px-2 py-1.5 min-w-[40px]">
+                <span className="text-[10px] uppercase text-muted-foreground">
+                  {format(new Date(upcomingTask.scheduled_at), 'MMM')}
+                </span>
+                <span className="text-lg font-bold text-foreground">
+                  {format(new Date(upcomingTask.scheduled_at), 'd')}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-foreground truncate">
+                  {upcomingTask.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(upcomingTask.scheduled_at), 'h:mm a')} - {format(new Date(new Date(upcomingTask.scheduled_at).getTime() + 30 * 60000), 'h:mm a')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
