@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { PropertyLocationPicker } from './PropertyLocationPicker';
-import { Upload, X, Image as ImageIcon, Video } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Video, User, Phone } from 'lucide-react';
 
 interface PropertyType {
   id: string;
@@ -39,6 +39,9 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
   const [images, setImages] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  // Owner details
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
   const { profile, user } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
@@ -138,6 +141,12 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
       ? `POINT(${location.lng} ${location.lat})`
       : null;
     
+    // Prepare owner details
+    const ownerDetails = (ownerName || ownerPhone) ? {
+      name: ownerName || null,
+      phone: ownerPhone || null,
+    } : {};
+
     const { data: property, error } = await supabase.from('properties').insert([{
       title,
       description: description || null,
@@ -152,6 +161,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
       created_by: user?.id,
       location: locationPoint,
       workspace_id: activeWorkspace?.id || null,
+      owner_details: ownerDetails,
     }]).select().single();
 
     if (error) {
@@ -198,6 +208,8 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
     setImages([]);
     setVideos([]);
     setImagePreviews([]);
+    setOwnerName('');
+    setOwnerPhone('');
   };
 
   return (
@@ -367,6 +379,38 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Owner Details Section */}
+          <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <User className="h-4 w-4 text-primary" />
+              Owner Details
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ownerName">Owner Name</Label>
+                <Input
+                  id="ownerName"
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  placeholder="Enter owner name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ownerPhone">Owner Phone</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="ownerPhone"
+                    value={ownerPhone}
+                    onChange={(e) => setOwnerPhone(e.target.value)}
+                    placeholder="Enter phone number"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Location Picker */}
