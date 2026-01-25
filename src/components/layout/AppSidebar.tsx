@@ -36,6 +36,7 @@ const mainItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
   { title: 'Leads', url: '/leads', icon: Users },
   { title: 'Pipeline', url: '/pipeline', icon: Kanban },
+  { title: 'Pipeline (Classic)', url: '/pipeline-old', icon: Kanban },
   { title: 'Properties', url: '/properties', icon: Building2 },
   { title: 'Map Search', url: '/map', icon: Map },
   { title: 'Chat', url: '/chat', icon: MessageSquare },
