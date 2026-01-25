@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Plus, Search, Phone, Mail, User, Clock, ExternalLink, Upload, Filter } from 'lucide-react';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { BulkImportDialog } from '@/components/leads/BulkImportDialog';
@@ -56,12 +57,13 @@ export default function Leads() {
   const [filterStaff, setFilterStaff] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const { profile, isAdmin } = useAuth();
+  const { activeWorkspace } = useWorkspace();
 
   useEffect(() => {
     if (profile?.branch_id || isAdmin) {
       fetchData();
     }
-  }, [profile, isAdmin]);
+  }, [profile, isAdmin, activeWorkspace]);
 
   const fetchData = async () => {
     const [leadsRes, branchesRes, profilesRes] = await Promise.all([
