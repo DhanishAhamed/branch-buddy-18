@@ -16,6 +16,7 @@ interface WorkspaceContextType {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   isLoading: boolean;
+  isSwitching: boolean;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   refreshWorkspaces: () => Promise<void>;
 }
@@ -27,6 +28,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const fetchWorkspaces = async () => {
     if (!user) {
@@ -77,24 +79,30 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const switchWorkspace = async (workspaceId: string) => {
-    if (!user) return;
+    if (!user || isSwitching) return;
 
-    // First update the state optimistically
-    const newActiveWorkspace = workspaces.find(w => w.id === workspaceId);
-    if (newActiveWorkspace) {
-      setActiveWorkspace(newActiveWorkspace);
-    }
+    setIsSwitching(true);
+    
+    try {
+      // Call the RPC function to set active workspace in database FIRST
+      const { error } = await supabase.rpc('set_active_workspace', {
+        _user_id: user.id,
+        _workspace_id: workspaceId
+      });
 
-    // Call the RPC function to set active workspace in database
-    const { error } = await supabase.rpc('set_active_workspace', {
-      _user_id: user.id,
-      _workspace_id: workspaceId
-    });
+      if (error) {
+        console.error('Error switching workspace:', error);
+        return;
+      }
 
-    if (error) {
-      console.error('Error switching workspace:', error);
-      // Revert on error
-      await fetchWorkspaces();
+      // Only update local state AFTER database is updated
+      // This ensures RLS queries will use the new workspace
+      const newActiveWorkspace = workspaces.find(w => w.id === workspaceId);
+      if (newActiveWorkspace) {
+        setActiveWorkspace(newActiveWorkspace);
+      }
+    } finally {
+      setIsSwitching(false);
     }
   };
 
@@ -111,6 +119,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       workspaces,
       activeWorkspace,
       isLoading,
+      isSwitching,
       switchWorkspace,
       refreshWorkspaces,
     }}>
