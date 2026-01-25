@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { Building2, MapPin, Search, Bed, Bath, Maximize, Phone, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Building2, MapPin, Search, Bed, Bath, Maximize, Phone, Sparkles, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { PropertyDetailModal } from '@/components/portal/PropertyDetailModal';
 
 interface Property {
   id: string;
@@ -22,6 +24,7 @@ interface Property {
   bathrooms: number | null;
   branch_id: string;
   images: string[] | null;
+  status: string;
   property_type: { name: string } | null;
   branch: { name: string; city: string } | null;
 }
@@ -53,49 +56,6 @@ const portalConfig = {
   },
 };
 
-function ImageCarousel({ images }: { images: string[] }) {
-  const [current, setCurrent] = useState(0);
-
-  if (!images || images.length === 0) return null;
-
-  const next = () => setCurrent((c) => (c + 1) % images.length);
-  const prev = () => setCurrent((c) => (c - 1 + images.length) % images.length);
-
-  return (
-    <div className="relative h-48 overflow-hidden">
-      <img 
-        src={images[current]} 
-        alt="" 
-        className="w-full h-full object-cover transition-transform duration-300"
-      />
-      {images.length > 1 && (
-        <>
-          <button 
-            onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 hover:bg-background"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); next(); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 hover:bg-background"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-            {images.map((_, i) => (
-              <div 
-                key={i} 
-                className={`w-2 h-2 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50'}`}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function Portal() {
   const { type } = useParams<{ type: 'commercial' | 'residential' | 'rentals' }>();
   const config = portalConfig[type || 'commercial'];
@@ -103,6 +63,7 @@ export default function Portal() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [enquiryProperty, setEnquiryProperty] = useState<Property | null>(null);
   const [enquiryName, setEnquiryName] = useState('');
   const [enquiryEmail, setEnquiryEmail] = useState('');
@@ -124,8 +85,8 @@ export default function Portal() {
     let query = supabase
       .from('properties')
       .select('*, property_type:property_types(name), branch:branches(name, city)')
-      .eq('status', 'available')
-      .eq('portal_type', type);
+      .eq('portal_type', type)
+      .in('status', ['available', 'sold', 'rented']); // Include sold/rented for display
 
     if (selectedBranch !== 'all') {
       query = query.eq('branch_id', selectedBranch);
@@ -139,6 +100,8 @@ export default function Portal() {
     prop.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     prop.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const availableCount = filteredProperties.filter(p => p.status === 'available').length;
 
   const formatPrice = (price: number) => {
     if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
@@ -176,26 +139,36 @@ export default function Portal() {
         description: 'Our team will contact you shortly.',
       });
       setEnquiryProperty(null);
+      setSelectedProperty(null);
       setEnquiryName('');
       setEnquiryEmail('');
       setEnquiryPhone('');
     }
   };
 
+  const handlePropertyClick = (property: Property) => {
+    setSelectedProperty(property);
+  };
+
+  const handleEnquireFromModal = (property: Property) => {
+    setSelectedProperty(null);
+    setEnquiryProperty(property);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Header */}
       <header className={`bg-gradient-to-r ${config.gradient} text-white`}>
-        <div className="container mx-auto px-4 py-12 md:py-16">
+        <div className="container mx-auto px-4 py-8 md:py-12">
           <div className="max-w-3xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <Building2 className="h-6 w-6" />
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <Building2 className="h-5 w-5" />
               </div>
               <span className="text-white/80 font-medium">Room4Calicut</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">{config.title}</h1>
-            <p className="text-white/80 text-lg mb-6">{config.subtitle}</p>
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">{config.title}</h1>
+            <p className="text-white/80 text-base mb-4">{config.subtitle}</p>
             
             {/* Search Bar */}
             <div className="flex flex-col sm:flex-row gap-3">
@@ -205,11 +178,11 @@ export default function Portal() {
                   placeholder="Search by title or location..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-11 h-12 bg-white text-foreground border-0"
+                  className="pl-11 h-11 bg-white text-foreground border-0"
                 />
               </div>
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="w-full sm:w-48 h-12 bg-white text-foreground border-0">
+                <SelectTrigger className="w-full sm:w-44 h-11 bg-white text-foreground border-0">
                   <SelectValue placeholder="Select City" />
                 </SelectTrigger>
                 <SelectContent>
@@ -224,161 +197,109 @@ export default function Portal() {
         </div>
       </header>
 
-      {/* Properties Section */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-muted-foreground">
-            <span className="font-semibold text-foreground">{filteredProperties.length}</span> properties available
+      {/* Main Content - Split Layout */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-muted-foreground text-sm">
+            <span className="font-semibold text-foreground">{availableCount}</span> available • 
+            <span className="ml-1">{filteredProperties.length} total</span>
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProperties.map((property) => (
-            <Card key={property.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 group border-0 shadow-md">
-              {/* Image */}
-              {property.images && property.images.length > 0 ? (
-                <ImageCarousel images={property.images} />
-              ) : (
-                <div className={`h-48 bg-gradient-to-br ${config.gradient} opacity-20 flex items-center justify-center relative`}>
-                  <Building2 className="h-20 w-20 text-foreground/20 group-hover:scale-110 transition-transform duration-300" />
-                </div>
-              )}
-              {property.branch && (
-                <Badge className="absolute top-3 left-3 bg-white/90 text-foreground hover:bg-white z-10">
-                  {property.branch.city}
-                </Badge>
-              )}
-              
-              <CardContent className="p-5 space-y-4">
-                {/* Title */}
-                <div>
-                  <h3 className={`font-semibold text-lg text-foreground group-hover:${config.accent} transition-colors line-clamp-1`}>
-                    {property.title}
-                  </h3>
-                  {property.property_type && (
-                    <Badge variant="outline" className="mt-1.5 text-xs">
-                      {property.property_type.name}
+        {/* Properties Grid - Right Side Layout */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredProperties.map((property) => {
+            const isSold = property.status === 'sold' || property.status === 'rented';
+            const firstImage = property.images?.[0];
+            
+            return (
+              <Card 
+                key={property.id} 
+                className={`overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 group border-0 shadow-md ${isSold ? 'opacity-75' : ''}`}
+                onClick={() => handlePropertyClick(property)}
+              >
+                {/* Image */}
+                <div className="relative h-40 overflow-hidden">
+                  {firstImage ? (
+                    <img 
+                      src={firstImage} 
+                      alt={property.title}
+                      className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isSold ? 'grayscale' : ''}`}
+                    />
+                  ) : (
+                    <div className={`h-full bg-gradient-to-br ${config.gradient} opacity-20 flex items-center justify-center`}>
+                      <Building2 className="h-12 w-12 text-foreground/20" />
+                    </div>
+                  )}
+                  
+                  {/* Status Badge */}
+                  {isSold && (
+                    <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
+                      {property.status === 'sold' ? 'SOLD' : 'RENTED'}
+                    </Badge>
+                  )}
+                  
+                  {/* City Badge */}
+                  {property.branch && !isSold && (
+                    <Badge className="absolute top-2 left-2 bg-white/90 text-foreground hover:bg-white">
+                      {property.branch.city}
                     </Badge>
                   )}
                 </div>
                 
-                {/* Address */}
-                {property.address && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 shrink-0" />
-                    <span className="line-clamp-1">{property.address}</span>
-                  </p>
-                )}
+                <CardContent className="p-3 space-y-2">
+                  {/* Title */}
+                  <h3 className="font-semibold text-foreground line-clamp-1 text-sm group-hover:text-primary transition-colors">
+                    {property.title}
+                  </h3>
+                  
+                  {/* Address */}
+                  {property.address && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      {property.address}
+                    </p>
+                  )}
 
-                {/* Description */}
-                {property.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {property.description}
-                  </p>
-                )}
+                  {/* Features */}
+                  {(property.bedrooms || property.bathrooms || property.area_sqft) && (
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      {property.bedrooms && (
+                        <span className="flex items-center gap-1">
+                          <Bed className="h-3 w-3" />
+                          {property.bedrooms}
+                        </span>
+                      )}
+                      {property.bathrooms && (
+                        <span className="flex items-center gap-1">
+                          <Bath className="h-3 w-3" />
+                          {property.bathrooms}
+                        </span>
+                      )}
+                      {property.area_sqft && (
+                        <span className="flex items-center gap-1">
+                          <Maximize className="h-3 w-3" />
+                          {property.area_sqft.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
-                {/* Features */}
-                {(property.bedrooms || property.bathrooms || property.area_sqft) && (
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground py-2 border-y border-border/50">
-                    {property.bedrooms && (
-                      <span className="flex items-center gap-1">
-                        <Bed className="h-4 w-4" />
-                        {property.bedrooms} Beds
+                  {/* Price */}
+                  <div className="pt-1">
+                    {property.price ? (
+                      <span className={`text-lg font-bold ${isSold ? 'text-muted-foreground line-through' : config.accent}`}>
+                        {formatPrice(property.price)}
+                        {type === 'rentals' && !isSold && <span className="text-xs font-normal text-muted-foreground">/mo</span>}
                       </span>
-                    )}
-                    {property.bathrooms && (
-                      <span className="flex items-center gap-1">
-                        <Bath className="h-4 w-4" />
-                        {property.bathrooms} Baths
-                      </span>
-                    )}
-                    {property.area_sqft && (
-                      <span className="flex items-center gap-1">
-                        <Maximize className="h-4 w-4" />
-                        {property.area_sqft.toLocaleString()} sqft
-                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Price on request</span>
                     )}
                   </div>
-                )}
-
-                {/* Price & CTA */}
-                <div className="flex items-center justify-between pt-2">
-                  {property.price && (
-                    <span className={`text-2xl font-bold ${config.accent}`}>
-                      {formatPrice(property.price)}
-                      {type === 'rentals' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
-                    </span>
-                  )}
-                  
-                  <Dialog open={enquiryProperty?.id === property.id} onOpenChange={(open) => !open && setEnquiryProperty(null)}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        onClick={() => setEnquiryProperty(property)}
-                        className={`bg-gradient-to-r ${config.gradient} hover:opacity-90`}
-                      >
-                        <Phone className="h-4 w-4 mr-2" />
-                        Enquire
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <Sparkles className={`h-5 w-5 ${config.accent}`} />
-                          Enquire About This Property
-                        </DialogTitle>
-                      </DialogHeader>
-                      <form onSubmit={handleEnquiry} className="space-y-4">
-                        <div className={`p-4 rounded-xl bg-gradient-to-r ${config.gradient} text-white`}>
-                          <p className="font-semibold">{property.title}</p>
-                          {property.price && (
-                            <p className="text-xl font-bold mt-1">{formatPrice(property.price)}</p>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Your Name *</Label>
-                          <Input
-                            id="name"
-                            value={enquiryName}
-                            onChange={(e) => setEnquiryName(e.target.value)}
-                            required
-                            placeholder="John Doe"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={enquiryEmail}
-                            onChange={(e) => setEnquiryEmail(e.target.value)}
-                            placeholder="john@example.com"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="phone">Phone *</Label>
-                          <Input
-                            id="phone"
-                            value={enquiryPhone}
-                            onChange={(e) => setEnquiryPhone(e.target.value)}
-                            required
-                            placeholder="+91 98765 43210"
-                          />
-                        </div>
-                        <Button 
-                          type="submit" 
-                          className={`w-full bg-gradient-to-r ${config.gradient} hover:opacity-90`}
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? 'Submitting...' : 'Submit Enquiry'}
-                        </Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Empty State */}
@@ -392,6 +313,77 @@ export default function Portal() {
           </div>
         )}
       </div>
+
+      {/* Property Detail Modal */}
+      <PropertyDetailModal
+        property={selectedProperty}
+        open={!!selectedProperty}
+        onOpenChange={(open) => !open && setSelectedProperty(null)}
+        onEnquire={handleEnquireFromModal}
+        portalType={type || 'commercial'}
+        gradient={config.gradient}
+        accent={config.accent}
+      />
+
+      {/* Enquiry Dialog */}
+      <Dialog open={!!enquiryProperty} onOpenChange={(open) => !open && setEnquiryProperty(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className={`h-5 w-5 ${config.accent}`} />
+              Enquire About This Property
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEnquiry} className="space-y-4">
+            {enquiryProperty && (
+              <div className={`p-4 rounded-xl bg-gradient-to-r ${config.gradient} text-white`}>
+                <p className="font-semibold">{enquiryProperty.title}</p>
+                {enquiryProperty.price && (
+                  <p className="text-xl font-bold mt-1">{formatPrice(enquiryProperty.price)}</p>
+                )}
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Your Name *</Label>
+              <Input
+                id="name"
+                value={enquiryName}
+                onChange={(e) => setEnquiryName(e.target.value)}
+                required
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={enquiryEmail}
+                onChange={(e) => setEnquiryEmail(e.target.value)}
+                placeholder="john@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone *</Label>
+              <Input
+                id="phone"
+                value={enquiryPhone}
+                onChange={(e) => setEnquiryPhone(e.target.value)}
+                required
+                placeholder="+91 98765 43210"
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className={`w-full bg-gradient-to-r ${config.gradient} hover:opacity-90`}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Enquiry'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

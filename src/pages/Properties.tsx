@@ -3,10 +3,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { Plus, Search, Building2, MapPin, Bed, Bath, Maximize, Pencil } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, Search, Building2, MapPin, Bed, Bath, Maximize, Pencil, MoreVertical, CheckCircle, XCircle } from 'lucide-react';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
 import { EditPropertyDialog } from '@/components/properties/EditPropertyDialog';
 
@@ -34,6 +36,7 @@ export default function Properties() {
   const [editProperty, setEditProperty] = useState<Property | null>(null);
   const { profile, isAdmin } = useAuth();
   const { activeWorkspace } = useWorkspace();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (profile?.branch_id || isAdmin) {
@@ -51,6 +54,27 @@ export default function Properties() {
       console.error('Error fetching properties:', error);
     }
     if (data) setProperties(data as Property[]);
+  };
+
+  const updatePropertyStatus = async (propertyId: string, newStatus: 'available' | 'under_offer' | 'sold' | 'rented' | 'off_market') => {
+    const { error } = await supabase
+      .from('properties')
+      .update({ status: newStatus })
+      .eq('id', propertyId);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update property status',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: `Property marked as ${newStatus.replace('_', ' ')}`,
+      });
+      fetchProperties();
+    }
   };
 
   const filteredProperties = properties.filter(prop =>
@@ -144,14 +168,55 @@ export default function Properties() {
                     {status.label}
                   </Badge>
                   {canEdit && (
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => setEditProperty(property)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="absolute top-3 left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-8 w-8"
+                        onClick={() => setEditProperty(property)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="secondary" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {property.status !== 'sold' && property.portal_type !== 'rentals' && (
+                            <DropdownMenuItem onClick={() => updatePropertyStatus(property.id, 'sold')}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-destructive" />
+                              Mark as Sold
+                            </DropdownMenuItem>
+                          )}
+                          {property.status !== 'rented' && property.portal_type === 'rentals' && (
+                            <DropdownMenuItem onClick={() => updatePropertyStatus(property.id, 'rented')}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-blue-500" />
+                              Mark as Rented
+                            </DropdownMenuItem>
+                          )}
+                          {property.status !== 'available' && (
+                            <DropdownMenuItem onClick={() => updatePropertyStatus(property.id, 'available')}>
+                              <XCircle className="h-4 w-4 mr-2 text-primary" />
+                              Mark as Available
+                            </DropdownMenuItem>
+                          )}
+                          {property.status !== 'under_offer' && (
+                            <DropdownMenuItem onClick={() => updatePropertyStatus(property.id, 'under_offer')}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-yellow-500" />
+                              Mark as Under Offer
+                            </DropdownMenuItem>
+                          )}
+                          {property.status !== 'off_market' && (
+                            <DropdownMenuItem onClick={() => updatePropertyStatus(property.id, 'off_market')}>
+                              <XCircle className="h-4 w-4 mr-2 text-muted-foreground" />
+                              Mark as Off Market
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   )}
                 </div>
                 
