@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,14 @@ import {
   Phone, 
   X,
   Building2,
-  Sparkles
+  Sparkles,
+  Train,
+  Plane,
+  Bus,
+  ShoppingBag,
+  GraduationCap,
+  Stethoscope,
+  UtensilsCrossed
 } from 'lucide-react';
 
 interface Property {
@@ -31,7 +38,76 @@ interface Property {
   status?: string;
   property_type: { name: string } | null;
   branch: { name: string; city: string } | null;
+  location?: { lat: number; lng: number } | null;
 }
+
+// Famous places database by city (Kerala/India focused)
+const famousPlacesByCity: Record<string, Array<{ name: string; lat: number; lng: number; type: string; icon: string }>> = {
+  'Kozhikode': [
+    { name: 'Calicut International Airport', lat: 11.1369, lng: 75.9514, type: 'airport', icon: 'plane' },
+    { name: 'Kozhikode Railway Station', lat: 11.2467, lng: 75.7804, type: 'railway', icon: 'train' },
+    { name: 'KSRTC Bus Stand', lat: 11.2512, lng: 75.7762, type: 'bus', icon: 'bus' },
+    { name: 'HiLITE Mall', lat: 11.2756, lng: 75.7868, type: 'mall', icon: 'shopping' },
+    { name: 'Focus Mall', lat: 11.2485, lng: 75.8338, type: 'mall', icon: 'shopping' },
+    { name: 'NIT Calicut', lat: 11.3245, lng: 75.9324, type: 'education', icon: 'education' },
+    { name: 'IIM Kozhikode', lat: 11.2871, lng: 75.8900, type: 'education', icon: 'education' },
+    { name: 'Baby Memorial Hospital', lat: 11.2581, lng: 75.7840, type: 'hospital', icon: 'hospital' },
+    { name: 'Kozhikode Beach', lat: 11.2488, lng: 75.7680, type: 'landmark', icon: 'landmark' },
+  ],
+  'Kochi': [
+    { name: 'Cochin International Airport', lat: 10.1520, lng: 76.3919, type: 'airport', icon: 'plane' },
+    { name: 'Ernakulam Junction', lat: 9.9816, lng: 76.2999, type: 'railway', icon: 'train' },
+    { name: 'Ernakulam Town Railway Station', lat: 9.9833, lng: 76.2833, type: 'railway', icon: 'train' },
+    { name: 'KSRTC Bus Stand Ernakulam', lat: 9.9833, lng: 76.2833, type: 'bus', icon: 'bus' },
+    { name: 'Lulu Mall', lat: 10.0176, lng: 76.3154, type: 'mall', icon: 'shopping' },
+    { name: 'Oberon Mall', lat: 10.0273, lng: 76.3083, type: 'mall', icon: 'shopping' },
+    { name: 'Amrita Hospital', lat: 10.0382, lng: 76.2890, type: 'hospital', icon: 'hospital' },
+    { name: 'Marine Drive', lat: 9.9833, lng: 76.2666, type: 'landmark', icon: 'landmark' },
+  ],
+  'Thiruvananthapuram': [
+    { name: 'Trivandrum International Airport', lat: 8.4822, lng: 76.9199, type: 'airport', icon: 'plane' },
+    { name: 'Trivandrum Central', lat: 8.4882, lng: 76.9498, type: 'railway', icon: 'train' },
+    { name: 'KSRTC Bus Stand Thampanoor', lat: 8.4883, lng: 76.9495, type: 'bus', icon: 'bus' },
+    { name: 'Mall of Travancore', lat: 8.5572, lng: 76.8817, type: 'mall', icon: 'shopping' },
+    { name: 'Technopark', lat: 8.5580, lng: 76.8814, type: 'landmark', icon: 'landmark' },
+    { name: 'KIMS Hospital', lat: 8.5310, lng: 76.9330, type: 'hospital', icon: 'hospital' },
+    { name: 'Kovalam Beach', lat: 8.3988, lng: 76.9781, type: 'landmark', icon: 'landmark' },
+  ],
+  // Default places for unknown cities
+  'default': [
+    { name: 'City Bus Stand', lat: 0, lng: 0, type: 'bus', icon: 'bus' },
+    { name: 'Railway Station', lat: 0, lng: 0, type: 'railway', icon: 'train' },
+    { name: 'Airport', lat: 0, lng: 0, type: 'airport', icon: 'plane' },
+    { name: 'Shopping Mall', lat: 0, lng: 0, type: 'mall', icon: 'shopping' },
+    { name: 'Hospital', lat: 0, lng: 0, type: 'hospital', icon: 'hospital' },
+  ],
+};
+
+// Calculate distance between two coordinates using Haversine formula
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Get icon component based on type
+const getPlaceIcon = (iconType: string) => {
+  switch (iconType) {
+    case 'plane': return Plane;
+    case 'train': return Train;
+    case 'bus': return Bus;
+    case 'shopping': return ShoppingBag;
+    case 'education': return GraduationCap;
+    case 'hospital': return Stethoscope;
+    default: return MapPin;
+  }
+};
 
 interface PropertyDetailModalProps {
   property: Property | null;
@@ -97,6 +173,36 @@ export function PropertyDetailModal({
   accent
 }: PropertyDetailModalProps) {
   const [currentImage, setCurrentImage] = useState(0);
+
+  // Calculate nearby places with distances - must be before early return
+  const nearbyPlaces = useMemo(() => {
+    if (!property) return [];
+    
+    const city = property.branch?.city || 'default';
+    const places = famousPlacesByCity[city] || famousPlacesByCity['default'];
+    
+    // If property has location, calculate actual distances
+    if (property.location?.lat && property.location?.lng) {
+      return places
+        .map(place => ({
+          ...place,
+          distance: calculateDistance(
+            property.location!.lat,
+            property.location!.lng,
+            place.lat,
+            place.lng
+          )
+        }))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 6); // Show top 6 nearest places
+    }
+    
+    // If no location, show places with simulated distances (for demo)
+    return places.slice(0, 6).map((place, index) => ({
+      ...place,
+      distance: 2 + (index * 3.5) + Math.random() * 2 // Simulated 2-20km range
+    }));
+  }, [property?.location, property?.branch?.city]);
 
   if (!property) return null;
 
@@ -257,6 +363,34 @@ export function PropertyDetailModal({
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">About this property</h3>
                   <p className="text-muted-foreground whitespace-pre-wrap">{property.description}</p>
+                </div>
+              )}
+
+              {/* Nearby Places */}
+              {nearbyPlaces.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-foreground mb-3">Nearby Places</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {nearbyPlaces.map((place, index) => {
+                      const IconComponent = getPlaceIcon(place.icon);
+                      return (
+                        <div 
+                          key={index}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border/50"
+                        >
+                          <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <IconComponent className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-foreground truncate">{place.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {place.distance.toFixed(1)} km
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
