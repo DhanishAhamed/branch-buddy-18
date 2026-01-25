@@ -14,6 +14,7 @@ import {
   Copy,
   Search,
   Palette,
+  Contact,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -57,8 +58,9 @@ const portalItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const { toast } = useToast();
+  const { signOut } = useAuth();
   const collapsed = state === 'collapsed';
 
   const isActive = (path: string) => location.pathname === path;
@@ -68,6 +70,9 @@ export function AppSidebar() {
     navigator.clipboard.writeText(link);
     toast({ title: 'Link copied!', description: `${type} portal link copied to clipboard` });
   };
+
+  // Check if user can view owner contacts
+  const canViewOwners = profile?.can_view_owners || isAdmin;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -109,6 +114,22 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              {/* Owner Contacts - Only visible to users with permission */}
+              {canViewOwners && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={isActive('/admin/owners')}
+                    className={`transition-all duration-200 ${isActive('/admin/owners') ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
+                  >
+                    <NavLink to="/admin/owners" className="flex items-center gap-3 py-2.5" activeClassName="">
+                      <Contact className="h-5 w-5" />
+                      {!collapsed && <span>Owner Contacts</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
