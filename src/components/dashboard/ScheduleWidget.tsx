@@ -1,10 +1,16 @@
-import { useState, useEffect } from 'react';
-import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
+import { useState, useEffect, useMemo } from 'react';
+import { format, isSameDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, CheckCircle2, MoreVertical, Plus } from 'lucide-react';
+import {
+  MiniCalendar,
+  MiniCalendarHeader,
+  MiniCalendarDay,
+  MiniCalendarDays,
+} from '@/components/kibo-ui/mini-calendar';
 
 interface Task {
   id: string;
@@ -17,18 +23,34 @@ interface Task {
 export function ScheduleWidget() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [upcomingTask, setUpcomingTask] = useState<Task | null>(null);
   const { user } = useAuth();
-  
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
+
+  useEffect(() => {
+    if (user) {
+      fetchAllTasks();
+      fetchUpcomingTask();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchTasks();
-      fetchUpcomingTask();
     }
   }, [user, selectedDate]);
+
+  const fetchAllTasks = async () => {
+    const { data } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('scheduled_at', { ascending: true });
+    
+    if (data) {
+      setAllTasks(data);
+    }
+  };
 
   const fetchTasks = async () => {
     const startOfDay = new Date(selectedDate);
@@ -75,55 +97,44 @@ export function ScheduleWidget() {
     );
   };
 
+  const tasksOnDates = useMemo(() => {
+    return allTasks.map(task => new Date(task.scheduled_at));
+  }, [allTasks]);
+
   return (
     <Card className="border-border/50 h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
           <Calendar className="h-5 w-5 text-primary" />
-          Today's Schedule
+          Schedule
         </CardTitle>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <MoreVertical className="h-4 w-4 text-muted-foreground" />
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Calendar Strip */}
-        <div className="flex justify-between gap-1">
-          {weekDays.map((day) => {
-            const isSelected = isSameDay(day, selectedDate);
-            const isToday = isSameDay(day, new Date());
-            
-            return (
-              <button
-                key={day.toISOString()}
-                onClick={() => setSelectedDate(day)}
-                className={`flex flex-col items-center justify-center flex-1 py-2 rounded-xl transition-all ${
-                  isSelected || isToday
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'text-foreground hover:bg-muted/50'
-                }`}
-              >
-                <span className="text-[10px] font-medium uppercase">
-                  {format(day, 'EEE')}
-                </span>
-                <span className="text-lg font-bold">
-                  {format(day, 'd')}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Mini Calendar */}
+        <MiniCalendar
+          selectedDate={selectedDate}
+          onDateSelect={setSelectedDate}
+          tasksOnDates={tasksOnDates}
+        >
+          <MiniCalendarHeader />
+          <MiniCalendarDays>
+            {(date) => <MiniCalendarDay date={date} key={date.toISOString()} />}
+          </MiniCalendarDays>
+        </MiniCalendar>
 
         {/* Tasks for selected day */}
-        <div className="min-h-[120px]">
+        <div className="min-h-[100px] pt-2 border-t border-border/50">
+          <p className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase mb-2">
+            {isSameDay(selectedDate, new Date()) ? "Today's Tasks" : format(selectedDate, 'MMM d, yyyy')}
+          </p>
           {tasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <CheckCircle2 className="h-10 w-10 text-muted-foreground/30 mb-2" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No tasks scheduled for this day
-              </p>
-              <p className="text-xs text-muted-foreground/70">
-                Enjoy your free time or catch up on emails!
+            <div className="flex flex-col items-center justify-center py-4 text-center">
+              <CheckCircle2 className="h-8 w-8 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground">
+                No tasks scheduled
               </p>
             </div>
           ) : (
