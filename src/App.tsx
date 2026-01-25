@@ -21,6 +21,7 @@ import Portal from "./pages/Portal";
 import AdminUsers from "./pages/admin/Users";
 import AdminSettings from "./pages/admin/Settings";
 import WorkspaceSettings from "./pages/admin/WorkspaceSettings";
+import AdminOwners from "./pages/admin/Owners";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ function AppRoutes() {
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
       <Route path="/admin/workspaces" element={<ProtectedRoute><WorkspaceSettings /></ProtectedRoute>} />
+      <Route path="/admin/owners" element={<ProtectedRoute><AdminOwners /></ProtectedRoute>} />
 
       {/* Redirects */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

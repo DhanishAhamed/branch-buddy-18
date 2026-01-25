@@ -1,16 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { format, isSameDay } from 'date-fns';
+import { format, addDays, subDays, isSameDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, CheckCircle2, MoreVertical, Plus } from 'lucide-react';
-import {
-  MiniCalendar,
-  MiniCalendarHeader,
-  MiniCalendarDay,
-  MiniCalendarDays,
-} from '@/components/kibo-ui/mini-calendar';
+import { Calendar, CheckCircle2, MoreVertical, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -22,10 +16,17 @@ interface Task {
 
 export function ScheduleWidget() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [dateOffset, setDateOffset] = useState(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [upcomingTask, setUpcomingTask] = useState<Task | null>(null);
   const { user } = useAuth();
+
+  // Generate 5 days based on offset
+  const visibleDates = useMemo(() => {
+    const baseDate = addDays(new Date(), dateOffset);
+    return Array.from({ length: 5 }, (_, i) => addDays(baseDate, i));
+  }, [dateOffset]);
 
   useEffect(() => {
     if (user) {
@@ -97,9 +98,9 @@ export function ScheduleWidget() {
     );
   };
 
-  const tasksOnDates = useMemo(() => {
-    return allTasks.map(task => new Date(task.scheduled_at));
-  }, [allTasks]);
+  const hasTaskOnDate = (date: Date) => {
+    return allTasks.some(task => isSameDay(new Date(task.scheduled_at), date));
+  };
 
   return (
     <Card className="border-border/50 h-full">
@@ -113,17 +114,62 @@ export function ScheduleWidget() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Mini Calendar */}
-        <MiniCalendar
-          selectedDate={selectedDate}
-          onDateSelect={setSelectedDate}
-          tasksOnDates={tasksOnDates}
-        >
-          <MiniCalendarHeader />
-          <MiniCalendarDays>
-            {(date) => <MiniCalendarDay date={date} key={date.toISOString()} />}
-          </MiniCalendarDays>
-        </MiniCalendar>
+        {/* 5-Day Calendar Strip */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setDateOffset(prev => prev - 5)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex flex-1 justify-between gap-1">
+            {visibleDates.map((date) => {
+              const isSelected = isSameDay(date, selectedDate);
+              const isToday = isSameDay(date, new Date());
+              const hasTask = hasTaskOnDate(date);
+
+              return (
+                <button
+                  key={date.toISOString()}
+                  onClick={() => setSelectedDate(date)}
+                  className={`relative flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : isToday
+                      ? 'bg-muted text-foreground'
+                      : 'text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <span className={`text-[10px] font-medium ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                    {format(date, 'MMM')}
+                  </span>
+                  <span className="text-lg font-bold">
+                    {format(date, 'd')}
+                  </span>
+                  {hasTask && (
+                    <span
+                      className={`absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full ${
+                        isSelected ? 'bg-primary-foreground' : 'bg-primary'
+                      }`}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setDateOffset(prev => prev + 5)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
         {/* Tasks for selected day */}
         <div className="min-h-[100px] pt-2 border-t border-border/50">
