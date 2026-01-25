@@ -112,11 +112,11 @@ export default function Leads() {
   );
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Leads</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Leads</h1>
           <p className="text-muted-foreground text-sm">{filteredLeads.length} leads in your pipeline</p>
         </div>
         <div className="flex gap-2">

@@ -38,12 +38,12 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6">
       {/* Dashboard Header with New Lead Button */}
       <DashboardHeader onLeadAdded={handleLeadAdded} />
 
       {/* Welcome Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 p-6 md:p-8 text-primary-foreground">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 p-4 sm:p-6 md:p-8 text-primary-foreground">
         {/* Decorative wave pattern */}
         <div className="absolute inset-0 opacity-20">
           <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
@@ -57,10 +57,10 @@ export default function Dashboard() {
             <Sparkles className="h-4 w-4" />
             <span className="text-sm font-medium">{greeting}</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
             Welcome back, {firstName}! 👋
           </h1>
-          <p className="text-primary-foreground/85 max-w-xl">
+          <p className="text-primary-foreground/85 max-w-xl text-sm sm:text-base">
             Here's what's happening with your properties and leads today. You have{' '}
             <Link to="/leads" className="underline font-semibold hover:text-primary-foreground">
               {newInquiries} new {newInquiries === 1 ? 'inquiry' : 'inquiries'}
@@ -69,24 +69,28 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="absolute -bottom-8 -right-8 opacity-10">
-          <Building2 className="h-40 w-40" />
+          <Building2 className="h-32 w-32 sm:h-40 sm:w-40" />
         </div>
       </div>
 
       {/* KPI Cards */}
       <SwipeableKPICards key={`kpi-${refreshKey}`} />
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Chart & Recent Leads */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Main Content Grid - 2 columns on tablet, 3 on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* Chart - full width on mobile, spans 2 on tablet, 2 on desktop */}
+        <div className="md:col-span-2 lg:col-span-2">
           <PerformanceChart key={`chart-${refreshKey}`} />
-          <RecentLeads key={`leads-${refreshKey}`} />
         </div>
         
-        {/* Right Column - Schedule */}
-        <div className="lg:col-span-1">
+        {/* Schedule - full width on mobile/tablet row 2, right column on desktop */}
+        <div className="md:col-span-1 lg:col-span-1 lg:row-span-2">
           <ScheduleWidget />
+        </div>
+        
+        {/* Recent Leads - full width on mobile, spans 2 on tablet/desktop */}
+        <div className="md:col-span-2 lg:col-span-2">
+          <RecentLeads key={`leads-${refreshKey}`} />
         </div>
       </div>
     </div>

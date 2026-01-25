@@ -131,11 +131,11 @@ export default function OwnersPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Property Owners</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Property Owners</h1>
           <p className="text-muted-foreground text-sm">
             Manage and view {filteredOwners.length} registered property owners and their assets
           </p>
@@ -171,8 +171,8 @@ export default function OwnersPage() {
         </CardContent>
       </Card>
 
-      {/* Owners Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {/* Owners Grid - optimized for tablet */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {paginatedOwners.map((owner, index) => (
           <Card
             key={`${owner.phone}-${index}`}
@@ -182,8 +182,8 @@ export default function OwnersPage() {
               setIsModalOpen(true);
             }}
           >
-            <CardContent className="p-5 flex flex-col items-center text-center">
-              <Avatar className="h-16 w-16 mb-3">
+            <CardContent className="p-4 md:p-5 flex flex-col items-center text-center">
+              <Avatar className="h-14 w-14 md:h-16 md:w-16 mb-3">
                 <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
                   {getInitials(owner.name)}
                 </AvatarFallback>
