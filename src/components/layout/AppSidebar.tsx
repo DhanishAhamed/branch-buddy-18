@@ -29,6 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
 const mainItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
@@ -68,19 +69,9 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarContent className="px-3">
-        {/* Logo Section */}
+        {/* Workspace Switcher */}
         <SidebarGroup className="pt-6 pb-4">
-          <div className={`flex items-center gap-3 px-2 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            {!collapsed && (
-              <div>
-                <h2 className="font-semibold text-sidebar-foreground">Room4Calicut</h2>
-                <p className="text-xs text-sidebar-foreground/60">Real Estate CRM</p>
-              </div>
-            )}
-          </div>
+          <WorkspaceSwitcher collapsed={collapsed} />
         </SidebarGroup>
 
         {/* Search Bar */}

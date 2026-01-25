@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 import Login from "./pages/Login";
@@ -78,7 +79,9 @@ function App() {
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
-              <AppRoutes />
+              <WorkspaceProvider>
+                <AppRoutes />
+              </WorkspaceProvider>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
