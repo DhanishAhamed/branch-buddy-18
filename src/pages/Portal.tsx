@@ -9,9 +9,44 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { Building2, MapPin, Search, Bed, Bath, Maximize, Phone, Sparkles, ChevronLeft, ChevronRight, X, MessageCircle } from 'lucide-react';
+import { Building2, MapPin, Search, Bed, Bath, Maximize, Phone, Sparkles, ChevronLeft, ChevronRight, X, MessageCircle, Share2, Copy, Facebook, Twitter, Link2, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PropertyDetailModal } from '@/components/portal/PropertyDetailModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+interface PropertyType {
+  id: string;
+  name: string;
+  portal_type: string;
+}
+
+// Share URL generator
+const getPropertyShareUrl = (propertyId: string, portalType: string) => {
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/portal/${portalType}?property=${propertyId}`;
+};
+
+// Share functions
+const shareProperty = async (property: Property, portalType: string, method: 'copy' | 'facebook' | 'twitter' | 'whatsapp', toast: any) => {
+  const url = getPropertyShareUrl(property.id, portalType);
+  const text = `Check out this ${portalType} property: ${property.title}`;
+
+  switch (method) {
+    case 'copy':
+      await navigator.clipboard.writeText(url);
+      toast({ title: 'Link copied!', description: 'Property link copied to clipboard' });
+      break;
+    case 'facebook':
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+      break;
+    case 'twitter':
+      window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
+      break;
+    case 'whatsapp':
+      window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+      break;
+  }
+};
 
 interface Property {
   id: string;
@@ -120,9 +155,10 @@ interface PropertyCardProps {
   formatPrice: (price: number) => string;
   onClick: () => void;
   isSold?: boolean;
+  onShare: (method: 'copy' | 'facebook' | 'twitter' | 'whatsapp') => void;
 }
 
-function PropertyCard({ property, config, type, formatPrice, onClick, isSold = false }: PropertyCardProps) {
+function PropertyCard({ property, config, type, formatPrice, onClick, isSold = false, onShare }: PropertyCardProps) {
   const sold = isSold || property.status === 'sold' || property.status === 'rented';
   const firstImage = property.images?.[0] || getPlaceholderImage(property.id, type);
 
@@ -156,6 +192,32 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
             {property.branch.city}
           </Badge>
         )}
+
+        {/* Share Button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-2 right-2 w-8 h-8 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-colors shadow-sm"
+            >
+              <Share2 className="h-4 w-4 text-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 bg-background z-50">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare('copy'); }}>
+              <Link2 className="h-4 w-4 mr-2" /> Copy Link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare('whatsapp'); }}>
+              <MessageCircle className="h-4 w-4 mr-2 text-[#25D366]" /> WhatsApp
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare('facebook'); }}>
+              <Facebook className="h-4 w-4 mr-2 text-[#1877F2]" /> Facebook
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare('twitter'); }}>
+              <Twitter className="h-4 w-4 mr-2 text-[#1DA1F2]" /> Twitter
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
       <CardContent className="p-3 space-y-2">
@@ -234,6 +296,8 @@ export default function Portal() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
+  const [selectedPropertyType, setSelectedPropertyType] = useState<string>('all');
+  const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [enquiryProperty, setEnquiryProperty] = useState<Property | null>(null);
@@ -245,12 +309,18 @@ export default function Portal() {
 
   useEffect(() => {
     fetchBranches();
+    fetchPropertyTypes();
     fetchProperties();
-  }, [type, selectedBranch]);
+  }, [type, selectedBranch, selectedPropertyType]);
 
   const fetchBranches = async () => {
     const { data } = await supabase.from('branches').select('*');
     if (data) setBranches(data);
+  };
+
+  const fetchPropertyTypes = async () => {
+    const { data } = await supabase.from('property_types').select('*').eq('portal_type', type);
+    if (data) setPropertyTypes(data);
   };
 
   const fetchProperties = async () => {
@@ -263,6 +333,10 @@ export default function Portal() {
 
     if (selectedBranch !== 'all') {
       query = query.eq('branch_id', selectedBranch);
+    }
+
+    if (selectedPropertyType !== 'all') {
+      query = query.eq('property_type_id', selectedPropertyType);
     }
 
     const { data } = await query.order('created_at', { ascending: false });
@@ -359,10 +433,22 @@ export default function Portal() {
                 <SelectTrigger className="w-full sm:w-44 h-11 bg-white text-foreground border-0">
                   <SelectValue placeholder="Select City" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background">
                   <SelectItem value="all">All Cities</SelectItem>
                   {branches.map(branch => (
                     <SelectItem key={branch.id} value={branch.id}>{branch.city}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedPropertyType} onValueChange={setSelectedPropertyType}>
+                <SelectTrigger className="w-full sm:w-44 h-11 bg-white text-foreground border-0">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Property Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-background">
+                  <SelectItem value="all">All Types</SelectItem>
+                  {propertyTypes.map(pt => (
+                    <SelectItem key={pt.id} value={pt.id}>{pt.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -390,6 +476,7 @@ export default function Portal() {
               type={type || 'commercial'}
               formatPrice={formatPrice}
               onClick={() => handlePropertyClick(property)}
+              onShare={(method) => shareProperty(property, type || 'commercial', method, toast)}
             />
           ))}
         </div>
@@ -428,6 +515,7 @@ export default function Portal() {
                   formatPrice={formatPrice}
                   onClick={() => handlePropertyClick(property)}
                   isSold
+                  onShare={(method) => shareProperty(property, type || 'commercial', method, toast)}
                 />
               ))}
             </div>
