@@ -79,15 +79,22 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const switchWorkspace = async (workspaceId: string) => {
     if (!user) return;
 
-    // Call the RPC function to set active workspace
-    await supabase.rpc('set_active_workspace', {
+    // First update the state optimistically
+    const newActiveWorkspace = workspaces.find(w => w.id === workspaceId);
+    if (newActiveWorkspace) {
+      setActiveWorkspace(newActiveWorkspace);
+    }
+
+    // Call the RPC function to set active workspace in database
+    const { error } = await supabase.rpc('set_active_workspace', {
       _user_id: user.id,
       _workspace_id: workspaceId
     });
 
-    const newActiveWorkspace = workspaces.find(w => w.id === workspaceId);
-    if (newActiveWorkspace) {
-      setActiveWorkspace(newActiveWorkspace);
+    if (error) {
+      console.error('Error switching workspace:', error);
+      // Revert on error
+      await fetchWorkspaces();
     }
   };
 

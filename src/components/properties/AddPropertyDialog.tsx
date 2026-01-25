@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { PropertyLocationPicker } from './PropertyLocationPicker';
 import { Upload, X, Image as ImageIcon, Video } from 'lucide-react';
@@ -39,6 +40,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
   const [videos, setVideos] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const { profile, user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -149,6 +151,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
       branch_id: profile.branch_id,
       created_by: user?.id,
       location: locationPoint,
+      workspace_id: activeWorkspace?.id || null,
     }]).select().single();
 
     if (error) {

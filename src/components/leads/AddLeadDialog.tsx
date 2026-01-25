@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddLeadDialogProps {
@@ -21,6 +22,7 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
   const [source, setSource] = useState('direct');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { profile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,6 +43,7 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
       phone: phone || null,
       source,
       branch_id: profile.branch_id,
+      workspace_id: activeWorkspace?.id || null,
     });
 
     setIsSubmitting(false);
