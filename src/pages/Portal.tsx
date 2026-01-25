@@ -56,6 +56,107 @@ const portalConfig = {
   },
 };
 
+interface PropertyCardProps {
+  property: Property;
+  config: typeof portalConfig.commercial;
+  type: string;
+  formatPrice: (price: number) => string;
+  onClick: () => void;
+  isSold?: boolean;
+}
+
+function PropertyCard({ property, config, type, formatPrice, onClick, isSold = false }: PropertyCardProps) {
+  const sold = isSold || property.status === 'sold' || property.status === 'rented';
+  const firstImage = property.images?.[0];
+
+  return (
+    <Card 
+      className={`overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 group border-0 shadow-md ${sold ? 'opacity-75' : ''}`}
+      onClick={onClick}
+    >
+      {/* Image */}
+      <div className="relative h-40 overflow-hidden">
+        {firstImage ? (
+          <img 
+            src={firstImage} 
+            alt={property.title}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${sold ? 'grayscale' : ''}`}
+          />
+        ) : (
+          <div className={`h-full bg-gradient-to-br ${config.gradient} opacity-20 flex items-center justify-center`}>
+            <Building2 className="h-12 w-12 text-foreground/20" />
+          </div>
+        )}
+        
+        {/* Status Badge */}
+        {sold && (
+          <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
+            {property.status === 'sold' ? 'SOLD' : 'RENTED'}
+          </Badge>
+        )}
+        
+        {/* City Badge */}
+        {property.branch && !sold && (
+          <Badge className="absolute top-2 left-2 bg-white/90 text-foreground hover:bg-white">
+            {property.branch.city}
+          </Badge>
+        )}
+      </div>
+      
+      <CardContent className="p-3 space-y-2">
+        {/* Title */}
+        <h3 className="font-semibold text-foreground line-clamp-1 text-sm group-hover:text-primary transition-colors">
+          {property.title}
+        </h3>
+        
+        {/* Address */}
+        {property.address && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
+            <MapPin className="h-3 w-3 shrink-0" />
+            {property.address}
+          </p>
+        )}
+
+        {/* Features */}
+        {(property.bedrooms || property.bathrooms || property.area_sqft) && (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {property.bedrooms && (
+              <span className="flex items-center gap-1">
+                <Bed className="h-3 w-3" />
+                {property.bedrooms}
+              </span>
+            )}
+            {property.bathrooms && (
+              <span className="flex items-center gap-1">
+                <Bath className="h-3 w-3" />
+                {property.bathrooms}
+              </span>
+            )}
+            {property.area_sqft && (
+              <span className="flex items-center gap-1">
+                <Maximize className="h-3 w-3" />
+                {property.area_sqft.toLocaleString()}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Price */}
+        <div className="pt-1">
+          {property.price ? (
+            <span className={`text-lg font-bold ${sold ? 'text-muted-foreground line-through' : config.accent}`}>
+              {formatPrice(property.price)}
+              {type === 'rentals' && !sold && <span className="text-xs font-normal text-muted-foreground">/mo</span>}
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-sm">Price on request</span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Portal() {
   const { type } = useParams<{ type: 'commercial' | 'residential' | 'rentals' }>();
   const config = portalConfig[type || 'commercial'];
@@ -82,11 +183,12 @@ export default function Portal() {
   };
 
   const fetchProperties = async () => {
+    // Use properties_public view for unauthenticated access (excludes owner_details)
     let query = supabase
-      .from('properties')
+      .from('properties_public')
       .select('*, property_type:property_types(name), branch:branches(name, city)')
       .eq('portal_type', type)
-      .in('status', ['available', 'sold', 'rented']); // Include sold/rented for display
+      .in('status', ['available', 'sold', 'rented']);
 
     if (selectedBranch !== 'all') {
       query = query.eq('branch_id', selectedBranch);
@@ -101,7 +203,8 @@ export default function Portal() {
     prop.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const availableCount = filteredProperties.filter(p => p.status === 'available').length;
+  const availableProperties = filteredProperties.filter(p => p.status === 'available');
+  const soldProperties = filteredProperties.filter(p => p.status === 'sold' || p.status === 'rented');
 
   const formatPrice = (price: number) => {
     if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
@@ -197,119 +300,66 @@ export default function Portal() {
         </div>
       </header>
 
-      {/* Main Content - Split Layout */}
+      {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-muted-foreground text-sm">
-            <span className="font-semibold text-foreground">{availableCount}</span> available • 
-            <span className="ml-1">{filteredProperties.length} total</span>
+            <span className="font-semibold text-foreground">{availableProperties.length}</span> available
+            {soldProperties.length > 0 && <span className="ml-1">• {soldProperties.length} recently sold</span>}
           </p>
         </div>
 
-        {/* Properties Grid - Right Side Layout */}
+        {/* Available Properties Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredProperties.map((property) => {
-            const isSold = property.status === 'sold' || property.status === 'rented';
-            const firstImage = property.images?.[0];
-            
-            return (
-              <Card 
-                key={property.id} 
-                className={`overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 group border-0 shadow-md ${isSold ? 'opacity-75' : ''}`}
-                onClick={() => handlePropertyClick(property)}
-              >
-                {/* Image */}
-                <div className="relative h-40 overflow-hidden">
-                  {firstImage ? (
-                    <img 
-                      src={firstImage} 
-                      alt={property.title}
-                      className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isSold ? 'grayscale' : ''}`}
-                    />
-                  ) : (
-                    <div className={`h-full bg-gradient-to-br ${config.gradient} opacity-20 flex items-center justify-center`}>
-                      <Building2 className="h-12 w-12 text-foreground/20" />
-                    </div>
-                  )}
-                  
-                  {/* Status Badge */}
-                  {isSold && (
-                    <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
-                      {property.status === 'sold' ? 'SOLD' : 'RENTED'}
-                    </Badge>
-                  )}
-                  
-                  {/* City Badge */}
-                  {property.branch && !isSold && (
-                    <Badge className="absolute top-2 left-2 bg-white/90 text-foreground hover:bg-white">
-                      {property.branch.city}
-                    </Badge>
-                  )}
-                </div>
-                
-                <CardContent className="p-3 space-y-2">
-                  {/* Title */}
-                  <h3 className="font-semibold text-foreground line-clamp-1 text-sm group-hover:text-primary transition-colors">
-                    {property.title}
-                  </h3>
-                  
-                  {/* Address */}
-                  {property.address && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      {property.address}
-                    </p>
-                  )}
-
-                  {/* Features */}
-                  {(property.bedrooms || property.bathrooms || property.area_sqft) && (
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      {property.bedrooms && (
-                        <span className="flex items-center gap-1">
-                          <Bed className="h-3 w-3" />
-                          {property.bedrooms}
-                        </span>
-                      )}
-                      {property.bathrooms && (
-                        <span className="flex items-center gap-1">
-                          <Bath className="h-3 w-3" />
-                          {property.bathrooms}
-                        </span>
-                      )}
-                      {property.area_sqft && (
-                        <span className="flex items-center gap-1">
-                          <Maximize className="h-3 w-3" />
-                          {property.area_sqft.toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Price */}
-                  <div className="pt-1">
-                    {property.price ? (
-                      <span className={`text-lg font-bold ${isSold ? 'text-muted-foreground line-through' : config.accent}`}>
-                        {formatPrice(property.price)}
-                        {type === 'rentals' && !isSold && <span className="text-xs font-normal text-muted-foreground">/mo</span>}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">Price on request</span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {availableProperties.map((property) => (
+            <PropertyCard
+              key={property.id}
+              property={property}
+              config={config}
+              type={type || 'commercial'}
+              formatPrice={formatPrice}
+              onClick={() => handlePropertyClick(property)}
+            />
+          ))}
         </div>
 
-        {/* Empty State */}
-        {filteredProperties.length === 0 && (
+        {/* Empty State for Available */}
+        {availableProperties.length === 0 && (
           <div className="text-center py-20">
             <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               <Building2 className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">No Properties Found</h3>
+            <h3 className="text-xl font-semibold text-foreground mb-2">No Available Properties</h3>
             <p className="text-muted-foreground">Try adjusting your search or filter criteria.</p>
+          </div>
+        )}
+
+        {/* Recently Sold Section */}
+        {soldProperties.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-border">
+            <div className="flex items-center gap-3 mb-6">
+              <div className={`w-10 h-10 bg-gradient-to-br ${config.gradient} rounded-xl flex items-center justify-center`}>
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Recently Sold</h2>
+                <p className="text-sm text-muted-foreground">Properties that found their perfect match</p>
+              </div>
+            </div>
+            
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {soldProperties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  config={config}
+                  type={type || 'commercial'}
+                  formatPrice={formatPrice}
+                  onClick={() => handlePropertyClick(property)}
+                  isSold
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
