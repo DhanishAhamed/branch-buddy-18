@@ -43,6 +43,43 @@ interface PropertyDetailModalProps {
   accent: string;
 }
 
+// Placeholder images for properties without images (Unsplash real estate photos)
+const placeholderImages = {
+  commercial: [
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1556761175-4b46a572b786?w=800&h=600&fit=crop',
+  ],
+  residential: [
+    'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop',
+  ],
+  rentals: [
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=800&h=600&fit=crop',
+  ],
+};
+
+// Get placeholder images based on property ID and portal type
+const getPlaceholderImages = (propertyId: string, portalType: string): string[] => {
+  const images = placeholderImages[portalType as keyof typeof placeholderImages] || placeholderImages.residential;
+  // Return 3 consistent images based on property ID
+  const startIndex = propertyId.charCodeAt(0) % images.length;
+  return [
+    images[startIndex],
+    images[(startIndex + 1) % images.length],
+    images[(startIndex + 2) % images.length],
+  ];
+};
+
 export function PropertyDetailModal({ 
   property, 
   open, 
@@ -56,7 +93,10 @@ export function PropertyDetailModal({
 
   if (!property) return null;
 
-  const images = property.images || [];
+  // Use uploaded images if available, otherwise use placeholder images
+  const images = property.images && property.images.length > 0 
+    ? property.images 
+    : getPlaceholderImages(property.id, portalType);
   const isSold = property.status === 'sold' || property.status === 'rented';
 
   const nextImage = () => setCurrentImage((c) => (c + 1) % images.length);
@@ -92,52 +132,44 @@ export function PropertyDetailModal({
               </div>
             )}
 
-            {images.length > 0 ? (
-              <>
-                <div className="relative h-64 lg:h-full">
-                  <img 
-                    src={images[currentImage]} 
-                    alt={property.title}
-                    className={`w-full h-full object-cover ${isSold ? 'opacity-70' : ''}`}
-                  />
-                  
-                  {/* Image Navigation */}
-                  {images.length > 1 && (
-                    <>
-                      <button 
-                        onClick={prevImage}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full p-2 hover:bg-background transition-colors"
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                      <button 
-                        onClick={nextImage}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full p-2 hover:bg-background transition-colors"
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
-                    </>
-                  )}
-                </div>
+            <div className="relative h-64 lg:h-full">
+              <img 
+                src={images[currentImage]} 
+                alt={property.title}
+                className={`w-full h-full object-cover ${isSold ? 'opacity-70' : ''}`}
+              />
+              
+              {/* Image Navigation */}
+              {images.length > 1 && (
+                <>
+                  <button 
+                    onClick={prevImage}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full p-2 hover:bg-background transition-colors"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button 
+                    onClick={nextImage}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full p-2 hover:bg-background transition-colors"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+            </div>
 
-                {/* Thumbnail Strip */}
-                {images.length > 1 && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background/80 backdrop-blur-sm rounded-full px-3 py-2">
-                    {images.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentImage(i)}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                          i === currentImage ? 'bg-foreground' : 'bg-foreground/30'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className={`h-64 lg:h-full flex items-center justify-center bg-gradient-to-br ${gradient} opacity-20`}>
-                <Building2 className="h-24 w-24 text-foreground/20" />
+            {/* Thumbnail Strip */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background/80 backdrop-blur-sm rounded-full px-3 py-2">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentImage(i)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      i === currentImage ? 'bg-foreground' : 'bg-foreground/30'
+                    }`}
+                  />
+                ))}
               </div>
             )}
           </div>
