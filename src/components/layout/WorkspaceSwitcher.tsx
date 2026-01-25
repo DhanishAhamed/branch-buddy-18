@@ -17,7 +17,7 @@ interface WorkspaceSwitcherProps {
 }
 
 export function WorkspaceSwitcher({ collapsed }: WorkspaceSwitcherProps) {
-  const { workspaces, activeWorkspace, switchWorkspace, isLoading } = useWorkspace();
+  const { workspaces, activeWorkspace, switchWorkspace, isLoading, isSwitching } = useWorkspace();
   const [open, setOpen] = useState(false);
 
   const getWorkspaceIcon = (slug: string) => {
@@ -34,7 +34,7 @@ export function WorkspaceSwitcher({ collapsed }: WorkspaceSwitcherProps) {
     setOpen(false);
   };
 
-  if (isLoading) {
+  if (isLoading || isSwitching) {
     return (
       <div className={`flex items-center gap-3 px-2 ${collapsed ? 'justify-center' : ''}`}>
         <div className="w-10 h-10 bg-primary/20 rounded-xl animate-pulse" />
