@@ -63,7 +63,7 @@ export default function Leads() {
     if (profile?.branch_id || isAdmin) {
       fetchData();
     }
-  }, [profile, isAdmin, activeWorkspace]);
+  }, [profile, isAdmin, activeWorkspace?.id]);
 
   const fetchData = async () => {
     const [leadsRes, branchesRes, profilesRes] = await Promise.all([

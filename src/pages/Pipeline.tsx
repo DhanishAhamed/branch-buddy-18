@@ -138,7 +138,7 @@ export default function Pipeline() {
       fetchLeads();
       fetchProperties();
     }
-  }, [profile, activeWorkspace]);
+  }, [profile, activeWorkspace?.id]);
 
   const fetchStages = async () => {
     const { data } = await supabase

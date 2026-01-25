@@ -36,15 +36,20 @@ export default function Properties() {
   const { activeWorkspace } = useWorkspace();
 
   useEffect(() => {
-    fetchProperties();
-  }, [profile, activeWorkspace]);
+    if (profile?.branch_id || isAdmin) {
+      fetchProperties();
+    }
+  }, [profile, activeWorkspace?.id, isAdmin]);
 
   const fetchProperties = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('properties')
       .select('id, title, description, address, price, area_sqft, bedrooms, bathrooms, status, portal_type, property_type_id, images, location, property_type:property_types(name)')
       .order('created_at', { ascending: false });
     
+    if (error) {
+      console.error('Error fetching properties:', error);
+    }
     if (data) setProperties(data as Property[]);
   };
 
