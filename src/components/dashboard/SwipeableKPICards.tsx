@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserPlus, CalendarCheck, AlertCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useDevice } from '@/hooks/use-device';
 
 interface KPIData {
   activeLeads: number;
@@ -26,7 +26,7 @@ export function SwipeableKPICards() {
     lastMonthLeads: 0,
   });
   const { user, profile } = useAuth();
-  const isMobile = useIsMobile();
+  const { isMobile } = useDevice();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -205,9 +205,9 @@ export function SwipeableKPICards() {
     );
   }
 
-  // Desktop: grid layout
+  // Desktop & Tablet: grid layout with responsive columns
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {cards.map((card) => (
         <Card key={card.title} className="border-border/50 bg-card hover:shadow-md transition-shadow">
           <CardContent className="p-5">

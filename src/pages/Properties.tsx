@@ -106,11 +106,11 @@ export default function Properties() {
   const canEdit = isAdmin || profile?.can_edit_properties;
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Properties</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Properties</h1>
           <p className="text-muted-foreground text-sm">{filteredProperties.length} properties in your portfolio</p>
         </div>
         <Button onClick={() => setIsAddDialogOpen(true)} className="shadow-lg shadow-primary/20">
@@ -130,8 +130,8 @@ export default function Properties() {
         />
       </div>
 
-      {/* Properties Grid */}
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {/* Properties Grid - responsive for tablet */}
+      <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {filteredProperties.length === 0 ? (
           <Card className="col-span-full border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
