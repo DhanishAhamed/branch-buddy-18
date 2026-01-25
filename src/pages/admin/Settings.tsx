@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save } from 'lucide-react';
+import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save, GitBranch, Layers } from 'lucide-react';
 import { PipelineSettings } from '@/components/settings/PipelineSettings';
 
 interface Branch { id: string; name: string; city: string; }
@@ -132,155 +132,163 @@ export default function AdminSettings() {
         Settings
       </h1>
 
-      {/* Pipeline Settings */}
-      <PipelineSettings />
+      {/* Settings Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Pipeline & Branches Section */}
+        <Card className="md:col-span-2">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2 text-primary">
+              <GitBranch className="h-5 w-5" />
+              <span className="text-lg font-semibold">Pipeline & Organization</span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Pipeline Settings */}
+            <PipelineSettings />
 
-      {/* Branches */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Branches / Cities
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Branch Name" 
-              value={newBranch.name} 
-              onChange={(e) => setNewBranch(p => ({ ...p, name: e.target.value }))} 
-            />
-            <Input 
-              placeholder="City" 
-              value={newBranch.city} 
-              onChange={(e) => setNewBranch(p => ({ ...p, city: e.target.value }))} 
-            />
-            <Button onClick={addBranch}><Plus className="h-4 w-4" /></Button>
-          </div>
-          <div className="space-y-2">
-            {branches.map((b) => (
-              <div key={b.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm font-medium">{b.name} - {b.city}</span>
-                <Button variant="ghost" size="icon" onClick={() => deleteBranch(b.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+            {/* Branches */}
+            <div className="pt-4 border-t border-border">
+              <h3 className="flex items-center gap-2 font-semibold text-foreground mb-4">
+                <Building2 className="h-4 w-4" />
+                Branches / Cities
+              </h3>
+              <div className="flex gap-2 mb-4">
+                <Input 
+                  placeholder="Branch Name" 
+                  value={newBranch.name} 
+                  onChange={(e) => setNewBranch(p => ({ ...p, name: e.target.value }))} 
+                />
+                <Input 
+                  placeholder="City" 
+                  value={newBranch.city} 
+                  onChange={(e) => setNewBranch(p => ({ ...p, city: e.target.value }))} 
+                />
+                <Button onClick={addBranch}><Plus className="h-4 w-4" /></Button>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Property Types */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Tag className="h-5 w-5" />
-            Property Types
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Type name" 
-              value={newType.name} 
-              onChange={(e) => setNewType(p => ({ ...p, name: e.target.value }))} 
-              className="flex-1"
-            />
-            <Select 
-              value={newType.portal_type} 
-              onValueChange={(val: 'commercial' | 'residential' | 'rentals') => setNewType(p => ({ ...p, portal_type: val }))}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="residential">Residential</SelectItem>
-                <SelectItem value="commercial">Commercial</SelectItem>
-                <SelectItem value="rentals">Rentals</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={addType}><Plus className="h-4 w-4" /></Button>
-          </div>
-          <div className="space-y-2">
-            {propertyTypes.map((t) => (
-              <div key={t.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div>
-                  <span className="text-sm font-medium">{t.name}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">({t.portal_type})</span>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => deleteType(t.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {branches.map((b) => (
+                  <div key={b.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <span className="text-sm font-medium">{b.name} - {b.city}</span>
+                    <Button variant="ghost" size="icon" onClick={() => deleteBranch(b.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* WhatsApp Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-green-500" />
-            WhatsApp Configuration
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Business Name</Label>
-              <Input 
-                placeholder="Your Business Name" 
-                value={configForm.business_name} 
-                onChange={(e) => setConfigForm(p => ({ ...p, business_name: e.target.value }))} 
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>WhatsApp Phone Number</Label>
-              <Input 
-                placeholder="+91 98765 43210" 
-                value={configForm.phone_number} 
-                onChange={(e) => setConfigForm(p => ({ ...p, phone_number: e.target.value }))} 
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>API Key (for WhatsApp Business API)</Label>
-            <Input 
-              type="password"
-              placeholder="Your API Key" 
-              value={configForm.api_key} 
-              onChange={(e) => setConfigForm(p => ({ ...p, api_key: e.target.value }))} 
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable WhatsApp Integration</Label>
-              <p className="text-xs text-muted-foreground">Send messages via WhatsApp</p>
-            </div>
-            <Switch 
-              checked={configForm.is_enabled} 
-              onCheckedChange={(checked) => setConfigForm(p => ({ ...p, is_enabled: checked }))} 
-            />
-          </div>
-          <Button onClick={saveWhatsAppConfig} className="w-full">
-            <Save className="h-4 w-4 mr-2" />
-            Save Configuration
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* WhatsApp Templates */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
-            WhatsApp Templates
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
+        {/* Property Types Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5" />
+              Property Types
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex gap-2">
+              <Input 
+                placeholder="Type name" 
+                value={newType.name} 
+                onChange={(e) => setNewType(p => ({ ...p, name: e.target.value }))} 
+                className="flex-1"
+              />
+              <Select 
+                value={newType.portal_type} 
+                onValueChange={(val: 'commercial' | 'residential' | 'rentals') => setNewType(p => ({ ...p, portal_type: val }))}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="residential">Residential</SelectItem>
+                  <SelectItem value="commercial">Commercial</SelectItem>
+                  <SelectItem value="rentals">Rentals</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={addType}><Plus className="h-4 w-4" /></Button>
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {propertyTypes.map((t) => (
+                <div key={t.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div>
+                    <span className="text-sm font-medium">{t.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">({t.portal_type})</span>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => deleteType(t.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* WhatsApp Configuration Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-500" />
+              WhatsApp Configuration
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Business Name</Label>
+                <Input 
+                  placeholder="Your Business Name" 
+                  value={configForm.business_name} 
+                  onChange={(e) => setConfigForm(p => ({ ...p, business_name: e.target.value }))} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>WhatsApp Phone Number</Label>
+                <Input 
+                  placeholder="+91 98765 43210" 
+                  value={configForm.phone_number} 
+                  onChange={(e) => setConfigForm(p => ({ ...p, phone_number: e.target.value }))} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>API Key (for WhatsApp Business API)</Label>
+                <Input 
+                  type="password"
+                  placeholder="Your API Key" 
+                  value={configForm.api_key} 
+                  onChange={(e) => setConfigForm(p => ({ ...p, api_key: e.target.value }))} 
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label>Enable WhatsApp Integration</Label>
+                <p className="text-xs text-muted-foreground">Send messages via WhatsApp</p>
+              </div>
+              <Switch 
+                checked={configForm.is_enabled} 
+                onCheckedChange={(checked) => setConfigForm(p => ({ ...p, is_enabled: checked }))} 
+              />
+            </div>
+            <Button onClick={saveWhatsAppConfig} className="w-full">
+              <Save className="h-4 w-4 mr-2" />
+              Save Configuration
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* WhatsApp Templates Section */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5" />
+              WhatsApp Templates
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Input 
                 placeholder="Template name" 
                 value={newTemplate.name} 
@@ -290,7 +298,7 @@ export default function AdminSettings() {
                 value={newTemplate.branch_id || 'all'} 
                 onValueChange={(val) => setNewTemplate(p => ({ ...p, branch_id: val === 'all' ? '' : val }))}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger>
                   <SelectValue placeholder="Branch" />
                 </SelectTrigger>
                 <SelectContent>
@@ -300,34 +308,34 @@ export default function AdminSettings() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button onClick={addTemplate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Template
+              </Button>
             </div>
             <Textarea 
               placeholder="Template message... Use {name}, {phone}, {property} as placeholders"
               value={newTemplate.template}
               onChange={(e) => setNewTemplate(p => ({ ...p, template: e.target.value }))}
-              rows={3}
+              rows={2}
             />
-            <Button onClick={addTemplate} className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Template
-            </Button>
-          </div>
-          
-          <div className="space-y-2">
-            {whatsappTemplates.map((t) => (
-              <div key={t.id} className="p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-sm">{t.name}</span>
-                  <Button variant="ghost" size="icon" onClick={() => deleteTemplate(t.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+              {whatsappTemplates.map((t) => (
+                <div key={t.id} className="p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-sm">{t.name}</span>
+                    <Button variant="ghost" size="icon" onClick={() => deleteTemplate(t.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{t.template}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{t.template}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

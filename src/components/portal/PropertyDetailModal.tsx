@@ -21,8 +21,15 @@ import {
   ShoppingBag,
   GraduationCap,
   Stethoscope,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Share2,
+  Link2,
+  Facebook,
+  Twitter,
+  MessageCircle
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 interface Property {
   id: string;
@@ -163,6 +170,12 @@ const getPlaceholderImages = (propertyId: string, portalType: string): string[] 
   ];
 };
 
+// Share functions for modal
+const getPropertyShareUrl = (propertyId: string, portalType: string) => {
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/portal/${portalType}?property=${propertyId}`;
+};
+
 export function PropertyDetailModal({ 
   property, 
   open, 
@@ -173,6 +186,29 @@ export function PropertyDetailModal({
   accent
 }: PropertyDetailModalProps) {
   const [currentImage, setCurrentImage] = useState(0);
+  const { toast } = useToast();
+
+  const handleShare = async (method: 'copy' | 'facebook' | 'twitter' | 'whatsapp') => {
+    if (!property) return;
+    const url = getPropertyShareUrl(property.id, portalType);
+    const text = `Check out this ${portalType} property: ${property.title}`;
+
+    switch (method) {
+      case 'copy':
+        await navigator.clipboard.writeText(url);
+        toast({ title: 'Link copied!', description: 'Property link copied to clipboard' });
+        break;
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        break;
+      case 'twitter':
+        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
+        break;
+      case 'whatsapp':
+        window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+        break;
+    }
+  };
 
   // Calculate nearby places with distances - must be before early return
   const nearbyPlaces = useMemo(() => {
@@ -293,7 +329,29 @@ export function PropertyDetailModal({
               {/* Header */}
               <div>
                 <div className="flex items-start justify-between gap-4">
-                  <h2 className="text-2xl font-bold text-foreground">{property.title}</h2>
+                  <h2 className="text-2xl font-bold text-foreground flex-1">{property.title}</h2>
+                  {/* Share Button */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" className="shrink-0">
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 bg-background z-50">
+                      <DropdownMenuItem onClick={() => handleShare('copy')}>
+                        <Link2 className="h-4 w-4 mr-2" /> Copy Link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleShare('whatsapp')}>
+                        <MessageCircle className="h-4 w-4 mr-2 text-[#25D366]" /> WhatsApp
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleShare('facebook')}>
+                        <Facebook className="h-4 w-4 mr-2 text-[#1877F2]" /> Facebook
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleShare('twitter')}>
+                        <Twitter className="h-4 w-4 mr-2 text-[#1DA1F2]" /> Twitter
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 
                 {property.property_type && (
