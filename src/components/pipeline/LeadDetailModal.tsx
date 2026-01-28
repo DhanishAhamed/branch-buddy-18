@@ -7,6 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLeadTemperature } from '@/hooks/use-lead-temperature';
+import { LeadTemperatureBadge } from './LeadTemperatureBadge';
 import { 
   User, Phone, Mail, Calendar, Building2, 
   MessageSquare, Clock, MapPin, Eye, EyeOff 
@@ -56,6 +58,7 @@ export function LeadDetailModal({ open, onOpenChange, leadId }: LeadDetailModalP
   const [interestedProperties, setInterestedProperties] = useState<InterestedProperty[]>([]);
   const [showPhone, setShowPhone] = useState(false);
   const { profile, isAdmin } = useAuth();
+  const { getLeadTemperature, showTemperatureIndicator } = useLeadTemperature();
 
   const canViewPhone = isAdmin || profile?.can_view_owners;
 
@@ -130,9 +133,18 @@ export function LeadDetailModal({ open, onOpenChange, leadId }: LeadDetailModalP
           <div className="space-y-6">
             {/* Basic Info */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-lg font-semibold">{lead.name}</h3>
-                <Badge variant="secondary">{lead.status.replace(/_/g, ' ')}</Badge>
+                <div className="flex items-center gap-2">
+                  {showTemperatureIndicator && (
+                    <LeadTemperatureBadge 
+                      temperature={getLeadTemperature(lead.id, lead.created_at)} 
+                      size="default"
+                      showLabel
+                    />
+                  )}
+                  <Badge variant="secondary">{lead.status.replace(/_/g, ' ')}</Badge>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">

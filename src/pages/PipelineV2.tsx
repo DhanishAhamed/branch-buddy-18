@@ -13,8 +13,10 @@ import {
 } from '@/components/kibo-ui/kanban';
 import { StatusTransitionDialog } from '@/components/pipeline/StatusTransitionDialog';
 import { LeadDetailModal } from '@/components/pipeline/LeadDetailModal';
+import { LeadTemperatureBadge } from '@/components/pipeline/LeadTemperatureBadge';
 import { PipelineFilters } from '@/components/pipeline/PipelineFilters';
 import { useToast } from '@/hooks/use-toast';
+import { useLeadTemperature } from '@/hooks/use-lead-temperature';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar, Phone, Mail } from 'lucide-react';
 import { DragEndEvent } from '@dnd-kit/core';
@@ -73,6 +75,7 @@ export default function PipelineV2() {
   const { profile, isAdmin } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
+  const { getLeadTemperature, showTemperatureIndicator, refetch: refetchTemperature } = useLeadTemperature();
 
   // Filter state
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
@@ -407,6 +410,12 @@ export default function PipelineV2() {
                                 </p>
                               </div>
                             </div>
+                            {showTemperatureIndicator && (
+                              <LeadTemperatureBadge 
+                                temperature={getLeadTemperature(lead.id, lead.created_at)} 
+                                size="sm"
+                              />
+                            )}
                           </div>
 
                           {(lead.phone || lead.email) && (

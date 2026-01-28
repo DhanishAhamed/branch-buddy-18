@@ -129,6 +129,38 @@ export type Database = {
           },
         ]
       }
+      lead_settings: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          id: string
+          show_temperature_indicator: boolean
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          show_temperature_indicator?: boolean
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          show_temperature_indicator?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
