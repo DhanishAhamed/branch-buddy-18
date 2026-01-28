@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save, GitBranch, Layers } from 'lucide-react';
+import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save, GitBranch, Layers, Thermometer } from 'lucide-react';
 import { PipelineSettings } from '@/components/settings/PipelineSettings';
 
 interface Branch { id: string; name: string; city: string; }
@@ -24,10 +25,12 @@ interface WhatsAppConfig {
 }
 
 export default function AdminSettings() {
+  const { profile } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([]);
   const [whatsappConfig, setWhatsappConfig] = useState<WhatsAppConfig | null>(null);
+  const [showTemperatureIndicator, setShowTemperatureIndicator] = useState(true);
   const [newBranch, setNewBranch] = useState({ name: '', city: '' });
   const [newType, setNewType] = useState<{ name: string; portal_type: 'commercial' | 'residential' | 'rentals' }>({ name: '', portal_type: 'residential' });
   const [newTemplate, setNewTemplate] = useState({ name: '', template: '', branch_id: '' });
@@ -36,14 +39,22 @@ export default function AdminSettings() {
 
   useEffect(() => { 
     fetchData(); 
-  }, []);
+  }, [profile?.branch_id]);
 
   const fetchData = async () => {
-    const [b, t, templates, config] = await Promise.all([
+    const [b, t, templates, config, leadSettings] = await Promise.all([
       supabase.from('branches').select('*'),
       supabase.from('property_types').select('*'),
       supabase.from('whatsapp_templates').select('*'),
       supabase.from('whatsapp_config').select('*').limit(1).maybeSingle(),
+      profile?.branch_id 
+        ? supabase.from('lead_settings')
+            .select('show_temperature_indicator')
+            .or(`branch_id.eq.${profile.branch_id},branch_id.is.null`)
+            .order('branch_id', { ascending: false, nullsFirst: false })
+            .limit(1)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
     if (b.data) setBranches(b.data);
     if (t.data) setPropertyTypes(t.data);
@@ -56,6 +67,9 @@ export default function AdminSettings() {
         business_name: config.data.business_name || '',
         is_enabled: config.data.is_enabled,
       });
+    }
+    if (leadSettings.data) {
+      setShowTemperatureIndicator(leadSettings.data.show_temperature_indicator);
     }
   };
 
@@ -125,6 +139,30 @@ export default function AdminSettings() {
     fetchData();
   };
 
+  const toggleTemperatureIndicator = async (enabled: boolean) => {
+    if (!profile?.branch_id) return;
+    
+    const { data: existing } = await supabase
+      .from('lead_settings')
+      .select('id')
+      .eq('branch_id', profile.branch_id)
+      .maybeSingle();
+    
+    if (existing) {
+      await supabase
+        .from('lead_settings')
+        .update({ show_temperature_indicator: enabled })
+        .eq('id', existing.id);
+    } else {
+      await supabase
+        .from('lead_settings')
+        .insert({ branch_id: profile.branch_id, show_temperature_indicator: enabled });
+    }
+    
+    setShowTemperatureIndicator(enabled);
+    toast({ title: enabled ? 'Lead temperature indicator enabled' : 'Lead temperature indicator disabled' });
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -145,6 +183,27 @@ export default function AdminSettings() {
           <CardContent className="space-y-6">
             {/* Pipeline Settings */}
             <PipelineSettings />
+
+            {/* Lead Temperature Settings */}
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/10">
+                    <Thermometer className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Lead Temperature Indicator</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Show Hot/Warm/Cold badges on lead cards based on engagement frequency
+                    </p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={showTemperatureIndicator} 
+                  onCheckedChange={toggleTemperatureIndicator} 
+                />
+              </div>
+            </div>
 
             {/* Branches */}
             <div className="pt-4 border-t border-border">
