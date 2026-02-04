@@ -47,9 +47,6 @@ export function BottomNav() {
             <DropdownMenuItem onClick={() => navigate('/pipeline')}>
               Pipeline
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/pipeline-old')}>
-              Pipeline (Classic)
-            </DropdownMenuItem>
             {isAdmin && (
               <>
                 <DropdownMenuItem onClick={() => navigate('/admin/users')}>
