@@ -58,7 +58,6 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
       <Route path="/pipeline" element={<ProtectedRoute><PipelineV2 /></ProtectedRoute>} />
-      <Route path="/pipeline-old" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
       <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
       <Route path="/map" element={<ProtectedRoute><MapSearch /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />

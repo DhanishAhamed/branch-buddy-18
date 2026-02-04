@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { Plus, Search, Phone, Mail, User, Clock, ExternalLink, Upload, Filter } from 'lucide-react';
+import { Plus, Search, Phone, Mail, User, Clock, Upload, Filter } from 'lucide-react';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { BulkImportDialog } from '@/components/leads/BulkImportDialog';
+import { LeadDetailModal } from '@/components/leads/LeadDetailModal';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Lead {
@@ -56,6 +57,8 @@ export default function Leads() {
   const [filterCity, setFilterCity] = useState<string>('all');
   const [filterStaff, setFilterStaff] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { profile, isAdmin } = useAuth();
   const { activeWorkspace } = useWorkspace();
 
@@ -207,7 +210,14 @@ export default function Leads() {
             const assignedTo = getStaffName(lead.assigned_to);
             
             return (
-              <Card key={lead.id} className="hover:shadow-md transition-all duration-200 group">
+              <Card 
+                key={lead.id} 
+                className="hover:shadow-md transition-all duration-200 group cursor-pointer"
+                onClick={() => {
+                  setSelectedLeadId(lead.id);
+                  setIsDetailModalOpen(true);
+                }}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     {/* Lead Info */}
@@ -223,23 +233,22 @@ export default function Leads() {
                         </h3>
                         <div className="flex flex-wrap items-center gap-3 text-sm">
                           {lead.email && (
-                            <a 
-                              href={`mailto:${lead.email}`}
-                              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                            <span 
+                              className="flex items-center gap-1.5 text-muted-foreground"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <Mail className="h-3.5 w-3.5" />
                               <span className="truncate max-w-[180px]">{lead.email}</span>
-                            </a>
+                            </span>
                           )}
                           {lead.phone && (
-                            <a 
-                              href={`tel:${lead.phone}`}
-                              className="flex items-center gap-1.5 text-primary hover:underline font-medium"
+                            <span 
+                              className="flex items-center gap-1.5 text-primary font-medium"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <Phone className="h-3.5 w-3.5" />
                               {lead.phone}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
+                            </span>
                           )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
@@ -286,6 +295,13 @@ export default function Leads() {
         open={isBulkImportOpen}
         onOpenChange={setIsBulkImportOpen}
         onSuccess={fetchData}
+      />
+
+      <LeadDetailModal
+        open={isDetailModalOpen}
+        onOpenChange={setIsDetailModalOpen}
+        leadId={selectedLeadId}
+        onLeadUpdated={fetchData}
       />
     </div>
   );
