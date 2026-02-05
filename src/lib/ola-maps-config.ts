@@ -4,6 +4,9 @@
  // API endpoints
  export const OLA_MAPS_AUTOCOMPLETE_URL = 'https://api.olamaps.io/places/v1/autocomplete';
  
+ // Map style URL
+ export const OLA_MAPS_STYLE_URL = `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json`;
+ 
  // Default map center (Calicut)
  export const DEFAULT_CENTER: [number, number] = [75.7804, 11.2588]; // [lng, lat] for Ola Maps
  export const DEFAULT_ZOOM = 12;
