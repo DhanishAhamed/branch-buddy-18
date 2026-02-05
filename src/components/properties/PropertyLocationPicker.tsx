@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, MapPin, Loader2 } from "lucide-react";
 import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from "@/lib/ola-maps-config";
- import { getOlaStyleUrl } from "@/lib/ola-maps-style";
+import { getOlaStyle } from "@/lib/ola-maps-style";
 
 interface PropertyLocationPickerProps {
   value: { lat: number; lng: number } | null;
@@ -45,11 +45,10 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
         });
         olaMapsRef.current = olaMaps;
 
-         // Use the style URL directly - SDK handles authentication
-         const styleUrl = getOlaStyleUrl();
+         const style = await getOlaStyle();
 
         const map = await olaMaps.init({
-          style: styleUrl,
+          style,
           container: mapContainerRef.current!,
           center: [center[1], center[0]], // Ola Maps uses [lng, lat]
           zoom: 14,

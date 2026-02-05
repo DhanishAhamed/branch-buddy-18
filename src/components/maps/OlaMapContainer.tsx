@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { OlaMaps } from "olamaps-web-sdk";
 import { OLA_MAPS_API_KEY, DEFAULT_CENTER, DEFAULT_ZOOM } from "@/lib/ola-maps-config";
- import { getOlaStyleUrl } from "@/lib/ola-maps-style";
+import { getOlaStyle } from "@/lib/ola-maps-style";
 
 interface OlaMapContainerProps {
   center?: [number, number]; // [lng, lat]
@@ -43,12 +43,11 @@ export function OlaMapContainer({
         });
         olaMapsRef.current = olaMaps;
 
-         // Use the style URL directly - SDK handles authentication
-         const styleUrl = getOlaStyleUrl();
-         console.log("[OlaMapContainer] Using style URL:", styleUrl);
+         const style = await getOlaStyle();
+         console.log("[OlaMapContainer] Using sanitized style object");
 
         const map = await olaMaps.init({
-          style: styleUrl,
+          style,
           container: mapContainerRef.current!,
           center: center,
           zoom: zoom,

@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from "lucide-react";
 import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from "@/lib/ola-maps-config";
- import { getOlaStyleUrl } from "@/lib/ola-maps-style";
+import { getOlaStyle } from "@/lib/ola-maps-style";
 
 interface Property {
   id: string;
@@ -75,13 +75,11 @@ export default function MapSearch() {
         });
         olaMapsRef.current = olaMaps;
 
-         // Use the style URL directly - SDK handles authentication
-         // Do NOT append api_key here - the SDK does it automatically
-         const styleUrl = getOlaStyleUrl();
-         console.log("[MapSearch] Using style URL (no api_key):", styleUrl);
+         const style = await getOlaStyle();
+         console.log("[MapSearch] Using sanitized style object");
 
         const map = await olaMaps.init({
-          style: styleUrl,
+          style,
           container: mapContainerRef.current!,
           center: [center[1], center[0]], // Ola Maps uses [lng, lat]
           zoom: 12,
