@@ -1,19 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Search, MapPin, Loader2 } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-
-// Fix Leaflet default marker icon
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+ import { useState, useEffect, useRef, useCallback } from 'react';
+ import { OlaMaps } from 'olamaps-web-sdk';
+ import { Button } from '@/components/ui/button';
+ import { Input } from '@/components/ui/input';
+ import { Label } from '@/components/ui/label';
+ import { Search, MapPin, Loader2 } from 'lucide-react';
+ import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from '@/lib/ola-maps-config';
 
 interface PropertyLocationPickerProps {
   value: { lat: number; lng: number } | null;
@@ -26,27 +17,6 @@ interface SearchResult {
   lon: string;
 }
 
-function LocationMarker({ position, setPosition }: { 
-  position: [number, number] | null; 
-  setPosition: (pos: [number, number]) => void;
-}) {
-  useMapEvents({
-    click(e) {
-      setPosition([e.latlng.lat, e.latlng.lng]);
-    },
-  });
-
-  return position ? <Marker position={position} /> : null;
-}
-
-function MapController({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, 14);
-  }, [center, map]);
-  return null;
-}
-
 export function PropertyLocationPicker({ value, onChange }: PropertyLocationPickerProps) {
   const [position, setPosition] = useState<[number, number] | null>(
     value ? [value.lat, value.lng] : null
@@ -57,6 +27,87 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+   const mapContainerRef = useRef<HTMLDivElement>(null);
+   const mapRef = useRef<any>(null);
+   const markerRef = useRef<any>(null);
+   const olaMapsRef = useRef<OlaMaps | null>(null);
+ 
+   // Initialize Ola Maps
+   useEffect(() => {
+     if (!mapContainerRef.current || mapRef.current) return;
+ 
+     const initMap = async () => {
+       const olaMaps = new OlaMaps({
+         apiKey: OLA_MAPS_API_KEY,
+       });
+       olaMapsRef.current = olaMaps;
+ 
+       const map = await olaMaps.init({
+         container: mapContainerRef.current!,
+         center: [center[1], center[0]], // Ola Maps uses [lng, lat]
+         zoom: 14,
+       });
+ 
+       mapRef.current = map;
+ 
+       // Handle map clicks
+       map.on('click', (e: any) => {
+         const newPos: [number, number] = [e.lngLat.lat, e.lngLat.lng];
+         setPosition(newPos);
+         updateMarker(newPos);
+       });
+ 
+       map.on('load', () => {
+         if (position) {
+           updateMarker(position);
+         }
+       });
+     };
+ 
+     initMap();
+ 
+     return () => {
+       if (mapRef.current) {
+         mapRef.current.remove();
+         mapRef.current = null;
+         olaMapsRef.current = null;
+       }
+     };
+   }, []);
+ 
+   // Update marker
+   const updateMarker = useCallback((pos: [number, number]) => {
+     if (!mapRef.current || !olaMapsRef.current) return;
+ 
+     // Remove existing marker
+     if (markerRef.current) {
+       markerRef.current.remove();
+     }
+ 
+     // Add new marker
+     markerRef.current = olaMapsRef.current
+       .addMarker({ color: '#22C55E', draggable: true })
+       .setLngLat([pos[1], pos[0]])
+       .addTo(mapRef.current);
+ 
+     // Handle marker drag
+     markerRef.current.on('dragend', () => {
+       const lngLat = markerRef.current.getLngLat();
+       const newPos: [number, number] = [lngLat.lat, lngLat.lng];
+       setPosition(newPos);
+     });
+   }, []);
+ 
+   // Effect to fly to new center
+   useEffect(() => {
+     if (mapRef.current) {
+       mapRef.current.flyTo({
+         center: [center[1], center[0]],
+         zoom: 14,
+         duration: 1000,
+       });
+     }
+   }, [center]);
 
   useEffect(() => {
     if (position) {
@@ -79,11 +130,27 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
     setIsSearching(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`
+         `${OLA_MAPS_AUTOCOMPLETE_URL}?input=${encodeURIComponent(searchQuery)}&api_key=${OLA_MAPS_API_KEY}`,
+         {
+           headers: {
+             'X-Request-Id': crypto.randomUUID(),
+           },
+         }
       );
       const data = await response.json();
-      setSearchResults(data);
-      setShowResults(true);
+       
+       if (data.predictions) {
+         const mappedResults: SearchResult[] = data.predictions.map((prediction: any) => ({
+           display_name: prediction.description || prediction.structured_formatting?.main_text || '',
+           lat: String(prediction.geometry?.location?.lat || 0),
+           lon: String(prediction.geometry?.location?.lng || 0),
+         }));
+         setSearchResults(mappedResults);
+         setShowResults(true);
+       } else {
+         setSearchResults([]);
+         setShowResults(false);
+       }
     } catch (error) {
       console.error('Search error:', error);
     }
@@ -94,7 +161,9 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
     const lat = parseFloat(result.lat);
     const lng = parseFloat(result.lon);
     setCenter([lat, lng]);
-    setPosition([lat, lng]);
+     const newPos: [number, number] = [lat, lng];
+     setPosition(newPos);
+     updateMarker(newPos);
     setSearchQuery(result.display_name);
     setShowResults(false);
   };
@@ -143,18 +212,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
       <p className="text-xs text-muted-foreground">Click on the map to set location or search for a place</p>
 
       <div className="h-[200px] rounded-lg overflow-hidden border border-border">
-        <MapContainer
-          center={center}
-          zoom={14}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <MapController center={center} />
-          <TileLayer
-            attribution='&copy; OpenStreetMap'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <LocationMarker position={position} setPosition={setPosition} />
-        </MapContainer>
+       <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
       </div>
 
       {position && (
@@ -165,7 +223,14 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
             type="button" 
             variant="ghost" 
             size="sm" 
-            onClick={() => { setPosition(null); onChange(null); }}
+           onClick={() => { 
+             setPosition(null); 
+             onChange(null);
+             if (markerRef.current) {
+               markerRef.current.remove();
+               markerRef.current = null;
+             }
+           }}
           >
             Clear
           </Button>
