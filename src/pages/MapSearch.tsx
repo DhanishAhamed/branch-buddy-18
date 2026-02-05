@@ -1,24 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
-import { Card, CardContent } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-
-// Fix Leaflet default marker icon
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+ import { useState, useEffect, useRef, useCallback } from 'react';
+ import { OlaMaps } from 'olamaps-web-sdk';
+ import { Card, CardContent } from '@/components/ui/card';
+ import { Slider } from '@/components/ui/slider';
+ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+ import { Button } from '@/components/ui/button';
+ import { Input } from '@/components/ui/input';
+ import { Badge } from '@/components/ui/badge';
+ import { supabase } from '@/integrations/supabase/client';
+ import { useAuth } from '@/contexts/AuthContext';
+ import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from 'lucide-react';
+ import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from '@/lib/ola-maps-config';
 
 interface Property {
   id: string;
@@ -45,14 +36,6 @@ interface SearchResult {
   lon: string;
 }
 
-function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, zoom);
-  }, [center, zoom, map]);
-  return null;
-}
-
 export default function MapSearch() {
   const [center, setCenter] = useState<[number, number]>([11.2588, 75.7804]); // Calicut
   const [radius, setRadius] = useState([50]); // km - default to larger radius to show more properties
@@ -67,9 +50,188 @@ export default function MapSearch() {
   const [showResults, setShowResults] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+   const mapContainerRef = useRef<HTMLDivElement>(null);
+   const mapRef = useRef<any>(null);
+   const markersRef = useRef<any[]>([]);
+   const centerMarkerRef = useRef<any>(null);
+   const circleLayerRef = useRef<any>(null);
+   const olaMapsRef = useRef<OlaMaps | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const { profile } = useAuth();
+ 
+   // Initialize Ola Maps
+   useEffect(() => {
+     if (!mapContainerRef.current || mapRef.current) return;
+ 
+     const initMap = async () => {
+       const olaMaps = new OlaMaps({
+         apiKey: OLA_MAPS_API_KEY,
+       });
+       olaMapsRef.current = olaMaps;
+ 
+       const map = await olaMaps.init({
+         container: mapContainerRef.current!,
+         center: [center[1], center[0]], // Ola Maps uses [lng, lat]
+         zoom: 12,
+       });
+ 
+       mapRef.current = map;
+ 
+       map.on('load', () => {
+         // Add center marker
+         updateCenterMarker();
+         // Add radius circle
+         updateRadiusCircle();
+         // Add property markers
+         updatePropertyMarkers();
+       });
+     };
+ 
+     initMap();
+ 
+     return () => {
+       if (mapRef.current) {
+         mapRef.current.remove();
+         mapRef.current = null;
+         olaMapsRef.current = null;
+       }
+     };
+   }, []);
+ 
+   // Update center marker when center changes
+   const updateCenterMarker = useCallback(() => {
+     if (!mapRef.current || !olaMapsRef.current) return;
+ 
+     // Remove existing center marker
+     if (centerMarkerRef.current) {
+       centerMarkerRef.current.remove();
+     }
+ 
+     // Add new center marker
+     centerMarkerRef.current = olaMapsRef.current
+       .addMarker({ color: '#22C55E', draggable: false })
+       .setLngLat([center[1], center[0]])
+       .addTo(mapRef.current);
+   }, [center]);
+ 
+   // Update radius circle
+   const updateRadiusCircle = useCallback(() => {
+     if (!mapRef.current) return;
+ 
+     // Remove existing circle layer
+     if (circleLayerRef.current) {
+       if (mapRef.current.getLayer('radius-circle')) {
+         mapRef.current.removeLayer('radius-circle');
+       }
+       if (mapRef.current.getSource('radius-circle')) {
+         mapRef.current.removeSource('radius-circle');
+       }
+     }
+ 
+     // Create circle as GeoJSON
+     const radiusInMeters = radius[0] * 1000;
+     const points = 64;
+     const coords = [];
+     
+     for (let i = 0; i < points; i++) {
+       const angle = (i / points) * 2 * Math.PI;
+       const dx = radiusInMeters * Math.cos(angle);
+       const dy = radiusInMeters * Math.sin(angle);
+       const lat = center[0] + (dy / 111320);
+       const lng = center[1] + (dx / (111320 * Math.cos(center[0] * Math.PI / 180)));
+       coords.push([lng, lat]);
+     }
+     coords.push(coords[0]); // Close the circle
+ 
+     try {
+       mapRef.current.addSource('radius-circle', {
+         type: 'geojson',
+         data: {
+           type: 'Feature',
+           properties: {},
+           geometry: {
+             type: 'Polygon',
+             coordinates: [coords],
+           },
+         },
+       });
+ 
+       mapRef.current.addLayer({
+         id: 'radius-circle',
+         type: 'fill',
+         source: 'radius-circle',
+         paint: {
+           'fill-color': '#22C55E',
+           'fill-opacity': 0.1,
+         },
+       });
+ 
+       circleLayerRef.current = true;
+     } catch (error) {
+       console.error('Error adding circle layer:', error);
+     }
+   }, [center, radius]);
+ 
+   // Update property markers
+   const updatePropertyMarkers = useCallback(() => {
+     if (!mapRef.current || !olaMapsRef.current) return;
+ 
+     // Remove existing markers
+     markersRef.current.forEach(marker => marker.remove());
+     markersRef.current = [];
+ 
+     // Add new markers
+     filteredProperties.forEach(property => {
+       const popup = olaMapsRef.current!
+         .addPopup({ offset: [0, -30], closeOnClick: true })
+         .setHTML(`
+           <div style="padding: 8px; min-width: 150px;">
+             <h3 style="font-weight: 600; font-size: 14px; margin: 0;">${property.title}</h3>
+             ${property.price ? `<p style="color: #22C55E; font-weight: 700; font-size: 14px; margin: 4px 0 0 0;">${formatPrice(property.price)}</p>` : ''}
+           </div>
+         `);
+ 
+       const marker = olaMapsRef.current!
+         .addMarker({ color: '#3B82F6', draggable: false })
+         .setLngLat([property.lng, property.lat])
+         .setPopup(popup)
+         .addTo(mapRef.current);
+ 
+       marker.getElement().addEventListener('click', () => {
+         setSelectedProperty(property);
+       });
+ 
+       markersRef.current.push(marker);
+     });
+   }, [filteredProperties]);
+ 
+   // Effect to update map when center changes
+   useEffect(() => {
+     if (mapRef.current) {
+       mapRef.current.flyTo({
+         center: [center[1], center[0]],
+         zoom: 12,
+         duration: 1000,
+       });
+       updateCenterMarker();
+       updateRadiusCircle();
+     }
+   }, [center, updateCenterMarker, updateRadiusCircle]);
+ 
+   // Effect to update circle when radius changes
+   useEffect(() => {
+     if (mapRef.current) {
+       updateRadiusCircle();
+     }
+   }, [radius, updateRadiusCircle]);
+ 
+   // Effect to update property markers
+   useEffect(() => {
+     if (mapRef.current) {
+       updatePropertyMarkers();
+     }
+   }, [filteredProperties, updatePropertyMarkers]);
 
   useEffect(() => {
     fetchPropertyTypes();
@@ -206,14 +368,32 @@ export default function MapSearch() {
     }
     setIsSearching(true);
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
-      );
+       const response = await fetch(
+         `${OLA_MAPS_AUTOCOMPLETE_URL}?input=${encodeURIComponent(query)}&api_key=${OLA_MAPS_API_KEY}`,
+         {
+           headers: {
+             'X-Request-Id': crypto.randomUUID(),
+           },
+         }
+       );
       const data = await response.json();
-      setSearchResults(data);
-      setShowResults(true);
+       
+       if (data.predictions) {
+         const mappedResults: SearchResult[] = data.predictions.map((prediction: any) => ({
+           display_name: prediction.description || prediction.structured_formatting?.main_text || '',
+           lat: String(prediction.geometry?.location?.lat || 0),
+           lon: String(prediction.geometry?.location?.lng || 0),
+         }));
+         setSearchResults(mappedResults);
+         setShowResults(true);
+       } else {
+         setSearchResults([]);
+         setShowResults(false);
+       }
     } catch (error) {
       console.error('Search error:', error);
+       setSearchResults([]);
+       setShowResults(false);
     }
     setIsSearching(false);
   }, []);
@@ -333,59 +513,7 @@ export default function MapSearch() {
 
         {/* Map */}
         <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border min-h-[300px]">
-          <MapContainer
-            center={center}
-            zoom={12}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <MapController center={center} zoom={12} />
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            
-            {/* Radius circle */}
-            <Circle
-              center={center}
-              radius={radius[0] * 1000}
-              pathOptions={{
-                color: 'hsl(142, 76%, 36%)',
-                fillColor: 'hsl(142, 76%, 36%)',
-                fillOpacity: 0.1,
-              }}
-            />
-
-            {/* Center marker */}
-            <Marker position={center}>
-              <Popup>
-                <div className="text-center p-1">
-                  <strong>Search Center</strong>
-                </div>
-              </Popup>
-            </Marker>
-
-            {/* Property markers */}
-            {filteredProperties.map(property => (
-              <Marker 
-                key={property.id} 
-                position={[property.lat, property.lng]}
-                eventHandlers={{
-                  click: () => setSelectedProperty(property),
-                }}
-              >
-                <Popup>
-                  <div className="p-1 min-w-[150px]">
-                    <h3 className="font-semibold text-sm">{property.title}</h3>
-                    {property.price && (
-                      <p className="text-primary font-bold text-sm mt-1">
-                        {formatPrice(property.price)}
-                      </p>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+           <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
         </div>
         
         <p className="text-center text-sm text-muted-foreground pb-4">
