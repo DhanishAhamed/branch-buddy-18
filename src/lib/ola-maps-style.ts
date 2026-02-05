@@ -14,7 +14,7 @@ type MapStyle = {
  * the base style URL. We sanitize problematic 3D layers that can cause
  * rendering issues.
  */
-export async function getOlaSanitizedStyle(): Promise<MapStyle | string> {
+export async function getOlaSanitizedStyle(): Promise<string> {
   try {
     // SDK handles auth automatically, but for fetching we need the key
     const url = `${OLA_MAPS_STYLE_URL}?api_key=${OLA_MAPS_API_KEY}`;
@@ -47,10 +47,25 @@ export async function getOlaSanitizedStyle(): Promise<MapStyle | string> {
       console.log("[OlaMaps] Filtered layers:", originalCount, "->", style.layers.length);
     }
 
-    return style;
+    // OlaMaps SDK expects `style` as a URL string (it internally calls `.includes()`),
+    // so we convert the sanitized JSON into a blob URL.
+    const blob = new Blob([JSON.stringify(style)], { type: "application/json" });
+    const blobUrl = URL.createObjectURL(blob);
+    return blobUrl;
   } catch (error) {
     console.error("[OlaMaps] Style loading error:", error);
     // Fallback to URL style string with API key; the SDK will use this
     return `${OLA_MAPS_STYLE_URL}?api_key=${OLA_MAPS_API_KEY}`;
+  }
+}
+
+export function revokeOlaSanitizedStyleUrl(styleUrl: string | null | undefined) {
+  if (!styleUrl) return;
+  if (styleUrl.startsWith("blob:")) {
+    try {
+      URL.revokeObjectURL(styleUrl);
+    } catch {
+      // ignore
+    }
   }
 }
