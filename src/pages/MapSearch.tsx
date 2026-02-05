@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from "lucide-react";
 import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from "@/lib/ola-maps-config";
-import { getOlaSanitizedStyle, revokeOlaSanitizedStyleUrl } from "@/lib/ola-maps-style";
+ import { getOlaStyleUrl } from "@/lib/ola-maps-style";
 
 interface Property {
   id: string;
@@ -67,8 +67,6 @@ export default function MapSearch() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    let styleUrl: string | null = null;
-
     const initMap = async () => {
       try {
         console.log("[MapSearch] Initializing map...");
@@ -77,7 +75,8 @@ export default function MapSearch() {
         });
         olaMapsRef.current = olaMaps;
 
-        styleUrl = await getOlaSanitizedStyle();
+         // Use the style URL directly - SDK handles authentication
+         const styleUrl = getOlaStyleUrl();
 
         const map = await olaMaps.init({
           style: styleUrl,
@@ -117,8 +116,6 @@ export default function MapSearch() {
         olaMapsRef.current = null;
       }
       setMapLoaded(false);
-
-      revokeOlaSanitizedStyleUrl(styleUrl);
     };
   }, []);
 

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, MapPin, Loader2 } from "lucide-react";
 import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from "@/lib/ola-maps-config";
-import { getOlaSanitizedStyle, revokeOlaSanitizedStyleUrl } from "@/lib/ola-maps-style";
+ import { getOlaStyleUrl } from "@/lib/ola-maps-style";
 
 interface PropertyLocationPickerProps {
   value: { lat: number; lng: number } | null;
@@ -37,8 +37,6 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    let styleUrl: string | null = null;
-
     const initMap = async () => {
       try {
         console.log("[PropertyLocationPicker] Initializing map...");
@@ -47,7 +45,8 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
         });
         olaMapsRef.current = olaMaps;
 
-        styleUrl = await getOlaSanitizedStyle();
+         // Use the style URL directly - SDK handles authentication
+         const styleUrl = getOlaStyleUrl();
 
         const map = await olaMaps.init({
           style: styleUrl,
@@ -94,8 +93,6 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
         olaMapsRef.current = null;
       }
       setMapLoaded(false);
-
-      revokeOlaSanitizedStyleUrl(styleUrl);
     };
   }, []);
 
