@@ -1,5 +1,14 @@
 import { OLA_MAPS_API_KEY, OLA_MAPS_STYLE_URL } from "@/lib/ola-maps-config";
 
+/**
+ * Appends api_key query parameter to a URL if not already present
+ */
+function appendApiKey(url: string): string {
+  if (!url || typeof url !== "string") return url;
+  if (url.includes("api_key=")) return url;
+  return url.includes("?") ? `${url}&api_key=${OLA_MAPS_API_KEY}` : `${url}?api_key=${OLA_MAPS_API_KEY}`;
+}
+
 type MapStyle = {
   version?: number;
   name?: string;
@@ -47,8 +56,31 @@ export async function getOlaSanitizedStyle(): Promise<string> {
       console.log("[OlaMaps] Filtered layers:", originalCount, "->", style.layers.length);
     }
 
-    // OlaMaps SDK expects `style` as a URL string (it internally calls `.includes()`),
-    // so we convert the sanitized JSON into a blob URL.
+    // Inject api_key into all tile/source URLs so the SDK doesn't need to append it
+    // This prevents the SDK from breaking our blob URL by appending ?api_key=...
+    if (style.sources) {
+      for (const sourceId of Object.keys(style.sources)) {
+        const source = style.sources[sourceId];
+        if (source.tiles && Array.isArray(source.tiles)) {
+          source.tiles = source.tiles.map((tileUrl: string) => appendApiKey(tileUrl));
+        }
+        if (source.url && typeof source.url === "string") {
+          source.url = appendApiKey(source.url);
+        }
+      }
+    }
+
+    // Also update sprite and glyphs URLs
+    if (style.sprite && typeof style.sprite === "string") {
+      style.sprite = appendApiKey(style.sprite);
+    }
+    if (style.glyphs && typeof style.glyphs === "string") {
+      style.glyphs = appendApiKey(style.glyphs);
+    }
+
+    console.log("[OlaMaps] API keys injected into style sources");
+
+    // Convert to blob URL for the SDK
     const blob = new Blob([JSON.stringify(style)], { type: "application/json" });
     const blobUrl = URL.createObjectURL(blob);
     return blobUrl;
