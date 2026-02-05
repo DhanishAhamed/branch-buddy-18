@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from "lucide-react";
 import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from "@/lib/ola-maps-config";
-import { getOlaSanitizedStyle } from "@/lib/ola-maps-style";
+import { getOlaSanitizedStyle, revokeOlaSanitizedStyleUrl } from "@/lib/ola-maps-style";
 
 interface Property {
   id: string;
@@ -65,6 +65,8 @@ export default function MapSearch() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
+    let styleUrl: string | null = null;
+
     const initMap = async () => {
       try {
         console.log("[MapSearch] Initializing map...");
@@ -73,10 +75,10 @@ export default function MapSearch() {
         });
         olaMapsRef.current = olaMaps;
 
-        const style = await getOlaSanitizedStyle();
+        styleUrl = await getOlaSanitizedStyle();
 
         const map = await olaMaps.init({
-          style,
+          style: styleUrl,
           container: mapContainerRef.current!,
           center: [center[1], center[0]], // Ola Maps uses [lng, lat]
           zoom: 12,
@@ -117,6 +119,8 @@ export default function MapSearch() {
         mapRef.current = null;
         olaMapsRef.current = null;
       }
+
+      revokeOlaSanitizedStyleUrl(styleUrl);
     };
   }, []);
 
@@ -446,9 +450,9 @@ export default function MapSearch() {
   };
 
   return (
-    <div className="h-full flex flex-col md:flex-row">
+    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-3.5rem)] min-h-0">
       {/* Left Side - Map & Filters */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col h-full">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col h-full min-h-0">
         {/* Filters */}
         <Card className="m-4 mb-0 border-border relative z-[1000]">
           <CardContent className="p-4 space-y-4">
@@ -525,7 +529,7 @@ export default function MapSearch() {
         </Card>
 
         {/* Map */}
-        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border min-h-[300px]">
+        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border min-h-0">
           <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
         </div>
 
@@ -535,7 +539,7 @@ export default function MapSearch() {
       </div>
 
       {/* Right Side - Property Cards */}
-      <div className="w-full md:w-1/2 lg:w-3/5 h-full overflow-y-auto border-l border-border bg-muted/30">
+      <div className="w-full md:w-1/2 lg:w-3/5 h-full min-h-0 overflow-y-auto border-l border-border bg-muted/30">
         <div className="p-4 space-y-4">
           <h2 className="font-semibold text-lg text-foreground flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />

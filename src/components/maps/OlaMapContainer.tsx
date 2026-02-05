@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { OlaMaps } from "olamaps-web-sdk";
 import { OLA_MAPS_API_KEY, DEFAULT_CENTER, DEFAULT_ZOOM } from "@/lib/ola-maps-config";
-import { getOlaSanitizedStyle } from "@/lib/ola-maps-style";
+import { getOlaSanitizedStyle, revokeOlaSanitizedStyleUrl } from "@/lib/ola-maps-style";
 
 interface OlaMapContainerProps {
   center?: [number, number]; // [lng, lat]
@@ -27,6 +27,8 @@ export function OlaMapContainer({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
+    let styleUrl: string | null = null;
+
     const initMap = async () => {
       try {
         console.log("[OlaMapContainer] Initializing map...");
@@ -43,11 +45,11 @@ export function OlaMapContainer({
         });
         olaMapsRef.current = olaMaps;
 
-        const style = await getOlaSanitizedStyle();
-        console.log("[OlaMapContainer] Style type:", typeof style);
+        styleUrl = await getOlaSanitizedStyle();
+        console.log("[OlaMapContainer] Style URL:", styleUrl);
 
         const map = await olaMaps.init({
-          style,
+          style: styleUrl,
           container: mapContainerRef.current!,
           center: center,
           zoom: zoom,
@@ -98,6 +100,8 @@ export function OlaMapContainer({
         mapRef.current = null;
         olaMapsRef.current = null;
       }
+
+      revokeOlaSanitizedStyleUrl(styleUrl);
     };
   }, []);
 
