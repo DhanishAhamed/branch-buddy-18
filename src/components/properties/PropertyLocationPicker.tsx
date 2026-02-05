@@ -1,11 +1,11 @@
- import { useState, useEffect, useRef, useCallback } from 'react';
- import { OlaMaps } from 'olamaps-web-sdk';
- import { Button } from '@/components/ui/button';
- import { Input } from '@/components/ui/input';
- import { Label } from '@/components/ui/label';
- import { Search, MapPin, Loader2 } from 'lucide-react';
- import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from '@/lib/ola-maps-config';
- import { getOlaSanitizedStyle } from '@/lib/ola-maps-style';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { OlaMaps } from "olamaps-web-sdk";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Search, MapPin, Loader2 } from "lucide-react";
+import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from "@/lib/ola-maps-config";
+import { getOlaSanitizedStyle } from "@/lib/ola-maps-style";
 
 interface PropertyLocationPickerProps {
   value: { lat: number; lng: number } | null;
@@ -19,99 +19,115 @@ interface SearchResult {
 }
 
 export function PropertyLocationPicker({ value, onChange }: PropertyLocationPickerProps) {
-  const [position, setPosition] = useState<[number, number] | null>(
-    value ? [value.lat, value.lng] : null
-  );
+  const [position, setPosition] = useState<[number, number] | null>(value ? [value.lat, value.lng] : null);
   const [center, setCenter] = useState<[number, number]>([11.2588, 75.7804]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-   const mapContainerRef = useRef<HTMLDivElement>(null);
-   const mapRef = useRef<any>(null);
-   const markerRef = useRef<any>(null);
-   const olaMapsRef = useRef<OlaMaps | null>(null);
- 
-   // Initialize Ola Maps
-   useEffect(() => {
-     if (!mapContainerRef.current || mapRef.current) return;
- 
-     const initMap = async () => {
-       const olaMaps = new OlaMaps({
-         apiKey: OLA_MAPS_API_KEY,
-       });
-       olaMapsRef.current = olaMaps;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const olaMapsRef = useRef<OlaMaps | null>(null);
+
+  // Initialize Ola Maps
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    const initMap = async () => {
+      try {
+        console.log("[PropertyLocationPicker] Initializing map...");
+        const olaMaps = new OlaMaps({
+          apiKey: OLA_MAPS_API_KEY,
+        });
+        olaMapsRef.current = olaMaps;
 
         const style = await getOlaSanitizedStyle();
- 
-       const map = await olaMaps.init({
+
+        const map = await olaMaps.init({
           style,
-         container: mapContainerRef.current!,
-         center: [center[1], center[0]], // Ola Maps uses [lng, lat]
-         zoom: 14,
-       });
- 
-       mapRef.current = map;
- 
-       // Handle map clicks
-       map.on('click', (e: any) => {
-         const newPos: [number, number] = [e.lngLat.lat, e.lngLat.lng];
-         setPosition(newPos);
-         updateMarker(newPos);
-       });
- 
-       map.on('load', () => {
-         if (position) {
-           updateMarker(position);
-         }
-       });
-     };
- 
-     initMap();
- 
-     return () => {
-       if (mapRef.current) {
-         mapRef.current.remove();
-         mapRef.current = null;
-         olaMapsRef.current = null;
-       }
-     };
-   }, []);
- 
-   // Update marker
-   const updateMarker = useCallback((pos: [number, number]) => {
-     if (!mapRef.current || !olaMapsRef.current) return;
- 
-     // Remove existing marker
-     if (markerRef.current) {
-       markerRef.current.remove();
-     }
- 
-     // Add new marker
-     markerRef.current = olaMapsRef.current
-       .addMarker({ color: '#22C55E', draggable: true })
-       .setLngLat([pos[1], pos[0]])
-       .addTo(mapRef.current);
- 
-     // Handle marker drag
-     markerRef.current.on('dragend', () => {
-       const lngLat = markerRef.current.getLngLat();
-       const newPos: [number, number] = [lngLat.lat, lngLat.lng];
-       setPosition(newPos);
-     });
-   }, []);
- 
-   // Effect to fly to new center
-   useEffect(() => {
-     if (mapRef.current) {
-       mapRef.current.flyTo({
-         center: [center[1], center[0]],
-         zoom: 14,
-         duration: 1000,
-       });
-     }
-   }, [center]);
+          container: mapContainerRef.current!,
+          center: [center[1], center[0]], // Ola Maps uses [lng, lat]
+          zoom: 14,
+        });
+
+        mapRef.current = map;
+        console.log("[PropertyLocationPicker] Map instance created");
+
+        // Handle map clicks
+        map.on("click", (e: any) => {
+          const newPos: [number, number] = [e.lngLat.lat, e.lngLat.lng];
+          setPosition(newPos);
+          updateMarker(newPos);
+        });
+
+        map.on("load", () => {
+          console.log("[PropertyLocationPicker] Map loaded");
+          // Trigger resize after load
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.resize();
+            }
+          }, 100);
+
+          if (position) {
+            updateMarker(position);
+          }
+        });
+
+        map.on("error", (e: any) => {
+          console.error("[PropertyLocationPicker] Map error:", e);
+        });
+      } catch (err) {
+        console.error("[PropertyLocationPicker] Initialization error:", err);
+      }
+    };
+
+    initMap();
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        olaMapsRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update marker
+  const updateMarker = useCallback((pos: [number, number]) => {
+    if (!mapRef.current || !olaMapsRef.current) return;
+
+    // Remove existing marker
+    if (markerRef.current) {
+      markerRef.current.remove();
+    }
+
+    // Add new marker
+    markerRef.current = olaMapsRef.current
+      .addMarker({ color: "#22C55E", draggable: true })
+      .setLngLat([pos[1], pos[0]])
+      .addTo(mapRef.current);
+
+    // Handle marker drag
+    markerRef.current.on("dragend", () => {
+      const lngLat = markerRef.current.getLngLat();
+      const newPos: [number, number] = [lngLat.lat, lngLat.lng];
+      setPosition(newPos);
+    });
+  }, []);
+
+  // Effect to fly to new center
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [center[1], center[0]],
+        zoom: 14,
+        duration: 1000,
+      });
+    }
+  }, [center]);
 
   useEffect(() => {
     if (position) {
@@ -125,8 +141,8 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
         setShowResults(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const searchPlace = async () => {
@@ -134,29 +150,29 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
     setIsSearching(true);
     try {
       const response = await fetch(
-         `${OLA_MAPS_AUTOCOMPLETE_URL}?input=${encodeURIComponent(searchQuery)}&api_key=${OLA_MAPS_API_KEY}`,
-         {
-           headers: {
-             'X-Request-Id': crypto.randomUUID(),
-           },
-         }
+        `${OLA_MAPS_AUTOCOMPLETE_URL}?input=${encodeURIComponent(searchQuery)}&api_key=${OLA_MAPS_API_KEY}`,
+        {
+          headers: {
+            "X-Request-Id": crypto.randomUUID(),
+          },
+        },
       );
       const data = await response.json();
-       
-       if (data.predictions) {
-         const mappedResults: SearchResult[] = data.predictions.map((prediction: any) => ({
-           display_name: prediction.description || prediction.structured_formatting?.main_text || '',
-           lat: String(prediction.geometry?.location?.lat || 0),
-           lon: String(prediction.geometry?.location?.lng || 0),
-         }));
-         setSearchResults(mappedResults);
-         setShowResults(true);
-       } else {
-         setSearchResults([]);
-         setShowResults(false);
-       }
+
+      if (data.predictions) {
+        const mappedResults: SearchResult[] = data.predictions.map((prediction: any) => ({
+          display_name: prediction.description || prediction.structured_formatting?.main_text || "",
+          lat: String(prediction.geometry?.location?.lat || 0),
+          lon: String(prediction.geometry?.location?.lng || 0),
+        }));
+        setSearchResults(mappedResults);
+        setShowResults(true);
+      } else {
+        setSearchResults([]);
+        setShowResults(false);
+      }
     } catch (error) {
-      console.error('Search error:', error);
+      console.error("Search error:", error);
     }
     setIsSearching(false);
   };
@@ -165,9 +181,9 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
     const lat = parseFloat(result.lat);
     const lng = parseFloat(result.lon);
     setCenter([lat, lng]);
-     const newPos: [number, number] = [lat, lng];
-     setPosition(newPos);
-     updateMarker(newPos);
+    const newPos: [number, number] = [lat, lng];
+    setPosition(newPos);
+    updateMarker(newPos);
     setSearchQuery(result.display_name);
     setShowResults(false);
   };
@@ -175,7 +191,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
   return (
     <div className="space-y-3">
       <Label>Map Location</Label>
-      
+
       {/* Place Search */}
       <div ref={searchRef} className="relative">
         <div className="flex gap-2">
@@ -185,7 +201,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
               placeholder="Search for a place..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && searchPlace()}
+              onKeyDown={(e) => e.key === "Enter" && searchPlace()}
               className="pl-10"
             />
           </div>
@@ -193,7 +209,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
             {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </div>
-        
+
         {showResults && searchResults.length > 0 && (
           <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
             {searchResults.map((result, index) => (
@@ -216,25 +232,27 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
       <p className="text-xs text-muted-foreground">Click on the map to set location or search for a place</p>
 
       <div className="h-[200px] rounded-lg overflow-hidden border border-border">
-       <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
+        <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
       </div>
 
       {position && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 text-primary" />
-          <span>Lat: {position[0].toFixed(6)}, Lng: {position[1].toFixed(6)}</span>
-          <Button 
-            type="button" 
-            variant="ghost" 
-            size="sm" 
-           onClick={() => { 
-             setPosition(null); 
-             onChange(null);
-             if (markerRef.current) {
-               markerRef.current.remove();
-               markerRef.current = null;
-             }
-           }}
+          <span>
+            Lat: {position[0].toFixed(6)}, Lng: {position[1].toFixed(6)}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setPosition(null);
+              onChange(null);
+              if (markerRef.current) {
+                markerRef.current.remove();
+                markerRef.current = null;
+              }
+            }}
           >
             Clear
           </Button>
