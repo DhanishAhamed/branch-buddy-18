@@ -4,7 +4,7 @@
  import { Input } from '@/components/ui/input';
  import { Label } from '@/components/ui/label';
  import { Search, MapPin, Loader2 } from 'lucide-react';
- import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from '@/lib/ola-maps-config';
+ import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL, OLA_MAPS_STYLE_URL } from '@/lib/ola-maps-config';
 
 interface PropertyLocationPickerProps {
   value: { lat: number; lng: number } | null;
@@ -43,6 +43,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
        olaMapsRef.current = olaMaps;
  
        const map = await olaMaps.init({
+         style: `${OLA_MAPS_STYLE_URL}?api_key=${OLA_MAPS_API_KEY}`,
          container: mapContainerRef.current!,
          center: [center[1], center[0]], // Ola Maps uses [lng, lat]
          zoom: 14,

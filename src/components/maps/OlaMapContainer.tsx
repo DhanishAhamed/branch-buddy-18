@@ -1,6 +1,6 @@
  import { useEffect, useRef, useState } from 'react';
  import { OlaMaps } from 'olamaps-web-sdk';
- import { OLA_MAPS_API_KEY, DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/ola-maps-config';
+ import { OLA_MAPS_API_KEY, OLA_MAPS_STYLE_URL, DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/ola-maps-config';
  
  interface OlaMapContainerProps {
    center?: [number, number]; // [lng, lat]
@@ -32,6 +32,7 @@
        olaMapsRef.current = olaMaps;
  
        const map = await olaMaps.init({
+         style: `${OLA_MAPS_STYLE_URL}?api_key=${OLA_MAPS_API_KEY}`,
          container: mapContainerRef.current!,
          center: center,
          zoom: zoom,
