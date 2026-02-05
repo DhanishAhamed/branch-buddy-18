@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { OlaMaps } from "olamaps-web-sdk";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const olaMapsRef = useRef<OlaMaps | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // Initialize Ola Maps
   useEffect(() => {
@@ -66,16 +68,13 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
 
         map.on("load", () => {
           console.log("[PropertyLocationPicker] Map loaded");
+          setMapLoaded(true);
           // Trigger resize after load
           setTimeout(() => {
             if (mapRef.current) {
               mapRef.current.resize();
             }
           }, 100);
-
-          if (position) {
-            updateMarker(position);
-          }
         });
 
         map.on("error", (e: any) => {
@@ -94,6 +93,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
         mapRef.current = null;
         olaMapsRef.current = null;
       }
+      setMapLoaded(false);
 
       revokeOlaSanitizedStyleUrl(styleUrl);
     };
@@ -122,16 +122,23 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
     });
   }, []);
 
+  // Add marker after map loads if we have a position
+  useEffect(() => {
+    if (mapLoaded && position) {
+      updateMarker(position);
+    }
+  }, [mapLoaded, position, updateMarker]);
+
   // Effect to fly to new center
   useEffect(() => {
-    if (mapRef.current) {
+    if (mapRef.current && mapLoaded) {
       mapRef.current.flyTo({
         center: [center[1], center[0]],
         zoom: 14,
         duration: 1000,
       });
     }
-  }, [center]);
+  }, [center, mapLoaded]);
 
   useEffect(() => {
     if (position) {

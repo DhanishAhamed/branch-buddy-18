@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { OlaMaps } from "olamaps-web-sdk";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -60,6 +61,7 @@ export default function MapSearch() {
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const { profile } = useAuth();
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // Initialize Ola Maps
   useEffect(() => {
@@ -89,18 +91,13 @@ export default function MapSearch() {
 
         map.on("load", () => {
           console.log("[MapSearch] Map loaded");
+          setMapLoaded(true);
           // Trigger resize to ensure proper rendering
           setTimeout(() => {
             if (mapRef.current) {
               mapRef.current.resize();
             }
           }, 100);
-          // Add center marker
-          updateCenterMarker();
-          // Add radius circle
-          updateRadiusCircle();
-          // Add property markers
-          updatePropertyMarkers();
         });
 
         map.on("error", (e: any) => {
@@ -119,6 +116,7 @@ export default function MapSearch() {
         mapRef.current = null;
         olaMapsRef.current = null;
       }
+      setMapLoaded(false);
 
       revokeOlaSanitizedStyleUrl(styleUrl);
     };
@@ -231,7 +229,7 @@ export default function MapSearch() {
 
   // Effect to update map when center changes
   useEffect(() => {
-    if (mapRef.current) {
+    if (mapRef.current && mapLoaded) {
       mapRef.current.flyTo({
         center: [center[1], center[0]],
         zoom: 12,
@@ -240,21 +238,21 @@ export default function MapSearch() {
       updateCenterMarker();
       updateRadiusCircle();
     }
-  }, [center, updateCenterMarker, updateRadiusCircle]);
+  }, [center, mapLoaded, updateCenterMarker, updateRadiusCircle]);
 
   // Effect to update circle when radius changes
   useEffect(() => {
-    if (mapRef.current) {
+    if (mapRef.current && mapLoaded) {
       updateRadiusCircle();
     }
-  }, [radius, updateRadiusCircle]);
+  }, [radius, mapLoaded, updateRadiusCircle]);
 
   // Effect to update property markers
   useEffect(() => {
-    if (mapRef.current) {
+    if (mapRef.current && mapLoaded) {
       updatePropertyMarkers();
     }
-  }, [filteredProperties, updatePropertyMarkers]);
+  }, [filteredProperties, mapLoaded, updatePropertyMarkers]);
 
   useEffect(() => {
     fetchPropertyTypes();
