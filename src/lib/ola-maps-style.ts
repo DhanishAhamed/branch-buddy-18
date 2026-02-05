@@ -10,18 +10,33 @@ type MapStyle = {
 
 /**
  * Ola Maps styles are MapLibre-compatible style JSON.
- * Some default styles may include 3D-related layers that reference source-layers
- * not present for all accounts/regions, which causes MapLibre to throw and the
- * map to render blank. We sanitize those layers to keep the base map working.
+ * The SDK automatically handles authentication, so we just need to provide
+ * the base style URL. We sanitize problematic 3D layers that can cause
+ * rendering issues.
  */
 export async function getOlaSanitizedStyle(): Promise<MapStyle | string> {
   try {
+    // SDK handles auth automatically, but for fetching we need the key
     const url = `${OLA_MAPS_STYLE_URL}?api_key=${OLA_MAPS_API_KEY}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Style fetch failed: ${res.status}`);
+    console.log("[OlaMaps] Fetching style from:", OLA_MAPS_STYLE_URL);
+
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      console.error("[OlaMaps] Style fetch failed:", res.status, res.statusText);
+      throw new Error(`Style fetch failed: ${res.status}`);
+    }
+
     const style = (await res.json()) as MapStyle;
+    console.log("[OlaMaps] Style loaded successfully, version:", style.version);
 
     if (Array.isArray(style.layers)) {
+      const originalCount = style.layers.length;
       style.layers = style.layers.filter((layer) => {
         const id = String(layer?.id ?? "");
         // Known problematic layers from Ola default styles
@@ -29,11 +44,13 @@ export async function getOlaSanitizedStyle(): Promise<MapStyle | string> {
         if (id.includes("3d_building")) return false;
         return true;
       });
+      console.log("[OlaMaps] Filtered layers:", originalCount, "->", style.layers.length);
     }
 
     return style;
-  } catch {
-    // Fallback to URL style string; better than hard-failing.
+  } catch (error) {
+    console.error("[OlaMaps] Style loading error:", error);
+    // Fallback to URL style string with API key; the SDK will use this
     return `${OLA_MAPS_STYLE_URL}?api_key=${OLA_MAPS_API_KEY}`;
   }
 }
