@@ -9,7 +9,8 @@
  import { supabase } from '@/integrations/supabase/client';
  import { useAuth } from '@/contexts/AuthContext';
  import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from 'lucide-react';
- import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL, OLA_MAPS_STYLE_URL } from '@/lib/ola-maps-config';
+ import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from '@/lib/ola-maps-config';
+ import { getOlaSanitizedStyle } from '@/lib/ola-maps-style';
 
 interface Property {
   id: string;
@@ -69,9 +70,11 @@ export default function MapSearch() {
          apiKey: OLA_MAPS_API_KEY,
        });
        olaMapsRef.current = olaMaps;
+
+        const style = await getOlaSanitizedStyle();
  
        const map = await olaMaps.init({
-         style: `${OLA_MAPS_STYLE_URL}?api_key=${OLA_MAPS_API_KEY}`,
+          style,
          container: mapContainerRef.current!,
          center: [center[1], center[0]], // Ola Maps uses [lng, lat]
          zoom: 12,
