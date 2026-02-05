@@ -76,7 +76,9 @@ export default function MapSearch() {
         olaMapsRef.current = olaMaps;
 
          // Use the style URL directly - SDK handles authentication
+         // Do NOT append api_key here - the SDK does it automatically
          const styleUrl = getOlaStyleUrl();
+         console.log("[MapSearch] Using style URL (no api_key):", styleUrl);
 
         const map = await olaMaps.init({
           style: styleUrl,
