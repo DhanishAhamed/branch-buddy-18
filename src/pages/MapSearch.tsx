@@ -1,17 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { Map as MapLibreMap } from "maplibre-gl";
-import { OlaMaps } from "olamaps-web-sdk";
+import { GoogleMap, useJsApiLoader, Marker, Circle, InfoWindow } from "@react-google-maps/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigation, Phone, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from "lucide-react";
-import { OLA_MAPS_API_KEY, OLA_MAPS_AUTOCOMPLETE_URL } from "@/lib/ola-maps-config";
-import { getOlaStyle } from "@/lib/ola-maps-style";
+import { Navigation, Search, MapPin, Loader2, Bed, Bath, Maximize, Building2 } from "lucide-react";
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES, DEFAULT_CENTER } from "@/lib/google-maps-config";
 
 interface Property {
   id: string;
@@ -33,14 +30,24 @@ interface PropertyType {
 }
 
 interface SearchResult {
-  display_name: string;
-  lat: string;
-  lon: string;
+  description: string;
+  place_id: string;
+  geometry?: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
 }
 
+const containerStyle = {
+  width: "100%",
+  height: "100%",
+};
+
 export default function MapSearch() {
-  const [center, setCenter] = useState<[number, number]>([11.2588, 75.7804]); // Calicut
-  const [radius, setRadius] = useState([50]); // km - default to larger radius to show more properties
+  const [center, setCenter] = useState<{ lat: number; lng: number }>(DEFAULT_CENTER);
+  const [radius, setRadius] = useState([50]); // km
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
@@ -51,205 +58,30 @@ export default function MapSearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [activeMarker, setActiveMarker] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const centerMarkerRef = useRef<any>(null);
-  const circleLayerRef = useRef<any>(null);
-  const olaMapsRef = useRef<OlaMaps | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const { profile } = useAuth();
-  const [mapLoaded, setMapLoaded] = useState(false);
 
-  // Initialize Ola Maps
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
 
-    const initMap = async () => {
-      try {
-        console.log("[MapSearch] Initializing map...");
-        const olaMaps = new OlaMaps({
-          apiKey: OLA_MAPS_API_KEY,
-        });
-        olaMapsRef.current = olaMaps;
-
-         const style = await getOlaStyle();
-         console.log("[MapSearch] Using sanitized style object");
-
-        const map = await olaMaps.init({
-          style,
-          container: mapContainerRef.current!,
-          center: [center[1], center[0]], // Ola Maps uses [lng, lat]
-          zoom: 12,
-        });
-
-        mapRef.current = map;
-        console.log("[MapSearch] Map instance created");
-
-        map.on("load", () => {
-          console.log("[MapSearch] Map loaded");
-          setMapLoaded(true);
-          // Trigger resize to ensure proper rendering
-          setTimeout(() => {
-            if (mapRef.current) {
-              mapRef.current.resize();
-            }
-          }, 100);
-        });
-
-        map.on("error", (e: any) => {
-          console.error("[MapSearch] Map error:", e);
-        });
-      } catch (err) {
-        console.error("[MapSearch] Initialization error:", err);
-      }
-    };
-
-    initMap();
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-        olaMapsRef.current = null;
-      }
-      setMapLoaded(false);
-    };
+  // Initialize Places services when map is loaded
+  const onMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+    autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+    placesServiceRef.current = new google.maps.places.PlacesService(map);
   }, []);
 
-  // Update center marker when center changes
-  const updateCenterMarker = useCallback(() => {
-    if (!mapRef.current || !olaMapsRef.current) return;
-
-    // Remove existing center marker
-    if (centerMarkerRef.current) {
-      centerMarkerRef.current.remove();
-    }
-
-    // Add new center marker
-    centerMarkerRef.current = olaMapsRef.current
-      .addMarker({ color: "#22C55E", draggable: false })
-      .setLngLat([center[1], center[0]])
-      .addTo(mapRef.current);
-  }, [center]);
-
-  // Update radius circle
-  const updateRadiusCircle = useCallback(() => {
-    if (!mapRef.current) return;
-
-    // Remove existing circle layer
-    if (circleLayerRef.current) {
-      if (mapRef.current.getLayer("radius-circle")) {
-        mapRef.current.removeLayer("radius-circle");
-      }
-      if (mapRef.current.getSource("radius-circle")) {
-        mapRef.current.removeSource("radius-circle");
-      }
-    }
-
-    // Create circle as GeoJSON
-    const radiusInMeters = radius[0] * 1000;
-    const points = 64;
-    const coords = [];
-
-    for (let i = 0; i < points; i++) {
-      const angle = (i / points) * 2 * Math.PI;
-      const dx = radiusInMeters * Math.cos(angle);
-      const dy = radiusInMeters * Math.sin(angle);
-      const lat = center[0] + dy / 111320;
-      const lng = center[1] + dx / (111320 * Math.cos((center[0] * Math.PI) / 180));
-      coords.push([lng, lat]);
-    }
-    coords.push(coords[0]); // Close the circle
-
-    try {
-      mapRef.current.addSource("radius-circle", {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "Polygon",
-            coordinates: [coords],
-          },
-        },
-      });
-
-      mapRef.current.addLayer({
-        id: "radius-circle",
-        type: "fill",
-        source: "radius-circle",
-        paint: {
-          "fill-color": "#22C55E",
-          "fill-opacity": 0.1,
-        },
-      });
-
-      circleLayerRef.current = true;
-    } catch (error) {
-      console.error("Error adding circle layer:", error);
-    }
-  }, [center, radius]);
-
-  // Update property markers
-  const updatePropertyMarkers = useCallback(() => {
-    if (!mapRef.current || !olaMapsRef.current) return;
-
-    // Remove existing markers
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-
-    // Add new markers
-    filteredProperties.forEach((property) => {
-      const popup = olaMapsRef.current!.addPopup({ offset: [0, -30], closeOnClick: true }).setHTML(`
-           <div style="padding: 8px; min-width: 150px;">
-             <h3 style="font-weight: 600; font-size: 14px; margin: 0;">${property.title}</h3>
-             ${property.price ? `<p style="color: #22C55E; font-weight: 700; font-size: 14px; margin: 4px 0 0 0;">${formatPrice(property.price)}</p>` : ""}
-           </div>
-         `);
-
-      const marker = olaMapsRef
-        .current!.addMarker({ color: "#3B82F6", draggable: false })
-        .setLngLat([property.lng, property.lat])
-        .setPopup(popup)
-        .addTo(mapRef.current);
-
-      marker.getElement().addEventListener("click", () => {
-        setSelectedProperty(property);
-      });
-
-      markersRef.current.push(marker);
-    });
-  }, [filteredProperties]);
-
-  // Effect to update map when center changes
-  useEffect(() => {
-    if (mapRef.current && mapLoaded) {
-      mapRef.current.flyTo({
-        center: [center[1], center[0]],
-        zoom: 12,
-        duration: 1000,
-      });
-      updateCenterMarker();
-      updateRadiusCircle();
-    }
-  }, [center, mapLoaded, updateCenterMarker, updateRadiusCircle]);
-
-  // Effect to update circle when radius changes
-  useEffect(() => {
-    if (mapRef.current && mapLoaded) {
-      updateRadiusCircle();
-    }
-  }, [radius, mapLoaded, updateRadiusCircle]);
-
-  // Effect to update property markers
-  useEffect(() => {
-    if (mapRef.current && mapLoaded) {
-      updatePropertyMarkers();
-    }
-  }, [filteredProperties, mapLoaded, updatePropertyMarkers]);
+  const onMapUnmount = useCallback(() => {
+    mapRef.current = null;
+  }, []);
 
   useEffect(() => {
     fetchPropertyTypes();
@@ -271,18 +103,23 @@ export default function MapSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Center map when center changes
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.panTo(center);
+    }
+  }, [center]);
+
   const fetchPropertyTypes = async () => {
     const { data } = await supabase.from("property_types").select("id, name");
     if (data) setPropertyTypes(data);
   };
 
   const fetchAllProperties = async () => {
-    // Use RPC to get properties with coordinates
     const { data, error } = await (supabase.rpc as any)("get_properties_with_coords");
 
     if (error) {
       console.error("Error fetching properties:", error);
-      // Fallback: try regular query
       const { data: fallbackData } = await supabase
         .from("properties")
         .select("id, title, address, price, property_type_id, bedrooms, bathrooms, area_sqft, images, location")
@@ -293,7 +130,6 @@ export default function MapSearch() {
         for (const p of fallbackData) {
           if (!p.location) continue;
           const locStr = String(p.location);
-          // Try to parse as WKT
           const match = locStr.match(/POINT\(([^ ]+) ([^)]+)\)/);
           if (match) {
             props.push({
@@ -339,12 +175,10 @@ export default function MapSearch() {
   const filterProperties = () => {
     let filtered = [...allProperties];
 
-    // Filter by property type
     if (selectedType !== "all") {
       filtered = filtered.filter((p) => p.property_type_id === selectedType);
     }
 
-    // Filter by price range
     if (priceRange !== "all") {
       const [min, max] = priceRange.split("-").map(Number);
       filtered = filtered.filter((p) => {
@@ -355,10 +189,9 @@ export default function MapSearch() {
       });
     }
 
-    // Filter by radius only if user has searched for a location
     if (hasSearched) {
       filtered = filtered.filter((p) => {
-        const dist = haversineDistance(center[0], center[1], p.lat, p.lng);
+        const dist = haversineDistance(center.lat, center.lng, p.lat, p.lng);
         return dist <= radius[0];
       });
     }
@@ -377,48 +210,80 @@ export default function MapSearch() {
     return R * c;
   };
 
-  const searchPlace = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setShowResults(false);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `${OLA_MAPS_AUTOCOMPLETE_URL}?input=${encodeURIComponent(query)}&api_key=${OLA_MAPS_API_KEY}`,
-        {
-          headers: {
-            "X-Request-Id": crypto.randomUUID(),
-          },
-        },
-      );
-      const data = await response.json();
+  const getPlaceDetails = useCallback((placeId: string): Promise<google.maps.places.PlaceResult | null> => {
+    return new Promise((resolve) => {
+      if (!placesServiceRef.current) {
+        resolve(null);
+        return;
+      }
 
-      if (data.predictions) {
-        const mappedResults: SearchResult[] = data.predictions.map((prediction: any) => ({
-          display_name: prediction.description || prediction.structured_formatting?.main_text || "",
-          lat: String(prediction.geometry?.location?.lat || 0),
-          lon: String(prediction.geometry?.location?.lng || 0),
-        }));
-        setSearchResults(mappedResults);
-        setShowResults(true);
-      } else {
+      placesServiceRef.current.getDetails(
+        { placeId, fields: ["geometry"] },
+        (result, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && result) {
+            resolve(result);
+          } else {
+            resolve(null);
+          }
+        }
+      );
+    });
+  }, []);
+
+  const searchPlace = useCallback(
+    async (query: string) => {
+      if (!query.trim()) {
         setSearchResults([]);
         setShowResults(false);
+        return;
       }
-    } catch (error) {
-      console.error("Search error:", error);
-      setSearchResults([]);
-      setShowResults(false);
-    }
-    setIsSearching(false);
-  }, []);
+
+      if (!autocompleteServiceRef.current) {
+        console.warn("Autocomplete service not ready");
+        return;
+      }
+
+      setIsSearching(true);
+
+      const request: google.maps.places.AutocompletionRequest = {
+        input: query,
+        componentRestrictions: { country: "in" },
+      };
+
+      autocompleteServiceRef.current.getPlacePredictions(request, async (predictions, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          const resultsWithGeometry: SearchResult[] = await Promise.all(
+            predictions.slice(0, 5).map(async (prediction) => {
+              const details = await getPlaceDetails(prediction.place_id);
+              return {
+                description: prediction.description,
+                place_id: prediction.place_id,
+                geometry: details?.geometry?.location
+                  ? {
+                      location: {
+                        lat: details.geometry.location.lat(),
+                        lng: details.geometry.location.lng(),
+                      },
+                    }
+                  : undefined,
+              };
+            })
+          );
+          setSearchResults(resultsWithGeometry);
+          setShowResults(true);
+        } else {
+          setSearchResults([]);
+          setShowResults(false);
+        }
+        setIsSearching(false);
+      });
+    },
+    [getPlaceDetails]
+  );
 
   const handleSearchInput = (value: string) => {
     setSearchQuery(value);
 
-    // Debounce search
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
@@ -428,10 +293,12 @@ export default function MapSearch() {
   };
 
   const selectPlace = (result: SearchResult) => {
-    setCenter([parseFloat(result.lat), parseFloat(result.lon)]);
-    setSearchQuery(result.display_name.split(",")[0]);
+    if (result.geometry?.location) {
+      setCenter(result.geometry.location);
+      setHasSearched(true);
+    }
+    setSearchQuery(result.description.split(",")[0]);
     setShowResults(false);
-    setHasSearched(true);
   };
 
   const openDirections = (lat: number, lng: number) => {
@@ -443,6 +310,25 @@ export default function MapSearch() {
     if (price >= 100000) return `₹${(price / 100000).toFixed(0)}L`;
     return `₹${(price / 1000).toFixed(0)}K`;
   };
+
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100dvh-3.5rem)]">
+        <div className="text-center p-4">
+          <p className="font-medium text-destructive">Map failed to load</p>
+          <p className="text-sm text-muted-foreground mt-1">Please check your API key configuration</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100dvh-3.5rem)]">
+        <div className="animate-pulse text-muted-foreground">Loading map...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-3.5rem)] min-h-0">
@@ -477,7 +363,7 @@ export default function MapSearch() {
                     >
                       <div className="flex items-start gap-2">
                         <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        <span className="line-clamp-2">{result.display_name}</span>
+                        <span className="line-clamp-2">{result.description}</span>
                       </div>
                     </button>
                   ))}
@@ -525,7 +411,87 @@ export default function MapSearch() {
 
         {/* Map */}
         <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border min-h-0">
-          <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
+          <GoogleMap
+            mapContainerStyle={containerStyle}
+            center={center}
+            zoom={12}
+            onLoad={onMapLoad}
+            onUnmount={onMapUnmount}
+            options={{
+              streetViewControl: false,
+              mapTypeControl: false,
+              fullscreenControl: false,
+            }}
+          >
+            {/* Center marker */}
+            {hasSearched && (
+              <Marker
+                position={center}
+                icon={{
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 10,
+                  fillColor: "#22C55E",
+                  fillOpacity: 1,
+                  strokeColor: "#ffffff",
+                  strokeWeight: 2,
+                }}
+              />
+            )}
+
+            {/* Radius circle */}
+            {hasSearched && (
+              <Circle
+                center={center}
+                radius={radius[0] * 1000}
+                options={{
+                  fillColor: "#22C55E",
+                  fillOpacity: 0.1,
+                  strokeColor: "#22C55E",
+                  strokeOpacity: 0.8,
+                  strokeWeight: 2,
+                }}
+              />
+            )}
+
+            {/* Property markers */}
+            {filteredProperties.map((property) => (
+              <Marker
+                key={property.id}
+                position={{ lat: property.lat, lng: property.lng }}
+                onClick={() => setActiveMarker(property.id)}
+                icon={{
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 8,
+                  fillColor: selectedProperty?.id === property.id ? "#22C55E" : "#3B82F6",
+                  fillOpacity: 1,
+                  strokeColor: "#ffffff",
+                  strokeWeight: 2,
+                }}
+              />
+            ))}
+
+            {/* Info window for active marker */}
+            {activeMarker && (
+              <InfoWindow
+                position={{
+                  lat: filteredProperties.find((p) => p.id === activeMarker)?.lat || 0,
+                  lng: filteredProperties.find((p) => p.id === activeMarker)?.lng || 0,
+                }}
+                onCloseClick={() => setActiveMarker(null)}
+              >
+                <div className="p-2 min-w-[150px]">
+                  <h3 className="font-semibold text-sm">
+                    {filteredProperties.find((p) => p.id === activeMarker)?.title}
+                  </h3>
+                  {filteredProperties.find((p) => p.id === activeMarker)?.price && (
+                    <p className="text-green-600 font-bold text-sm mt-1">
+                      {formatPrice(filteredProperties.find((p) => p.id === activeMarker)!.price!)}
+                    </p>
+                  )}
+                </div>
+              </InfoWindow>
+            )}
+          </GoogleMap>
         </div>
 
         <p className="text-center text-sm text-muted-foreground pb-4">
