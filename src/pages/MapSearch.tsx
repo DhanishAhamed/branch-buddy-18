@@ -56,7 +56,6 @@ export default function MapSearch() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [mapLoading, setMapLoading] = useState(true);
-  const [mapError, setMapError] = useState<string | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -131,7 +130,6 @@ export default function MapSearch() {
       };
     } catch (err) {
       console.error("Map init error:", err);
-      setMapError("Failed to initialize map");
       setMapLoading(false);
     }
   }, []);
@@ -370,16 +368,6 @@ export default function MapSearch() {
     return `₹${(price / 1000).toFixed(0)}K`;
   };
 
-  if (mapError) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100dvh-3.5rem)]">
-        <div className="text-center p-4">
-          <p className="font-medium text-destructive">Map failed to load</p>
-          <p className="text-sm text-muted-foreground mt-1">{mapError}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-3.5rem)] min-h-0">
