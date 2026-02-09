@@ -276,6 +276,7 @@ export default function PipelineV2() {
         user_id: profile.user_id,
         lead_id: leadId,
         is_completed: false,
+        workspace_id: activeWorkspace?.id || null,
       });
     }
 
@@ -288,6 +289,7 @@ export default function PipelineV2() {
         user_id: profile.user_id,
         lead_id: leadId,
         is_completed: false,
+        workspace_id: activeWorkspace?.id || null,
       });
     }
 

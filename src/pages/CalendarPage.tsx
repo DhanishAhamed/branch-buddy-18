@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   format,
   startOfWeek,
@@ -19,9 +19,10 @@ import {
   eachDayOfInterval,
 } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, GripVertical } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, GripVertical, Repeat } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -30,11 +31,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 type EventType = 'task' | 'followup' | 'site_visit';
 type ViewMode = 'week' | 'month';
+type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | null;
 
 interface CalendarEvent {
   id: string;
@@ -46,6 +50,7 @@ interface CalendarEvent {
   is_completed?: boolean;
   lead_name?: string;
   sourceTable?: 'tasks' | 'call_notes' | 'leads';
+  recurrence_rule?: string | null;
 }
 
 const EVENT_COLORS: Record<EventType, { bg: string; border: string; text: string; dot: string }> = {
@@ -62,13 +67,51 @@ const EVENT_LABELS: Record<EventType, string> = {
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7);
 
+// Generate recurring event occurrences within a date range
+function expandRecurringEvents(events: CalendarEvent[], rangeStart: Date, rangeEnd: Date): CalendarEvent[] {
+  const expanded: CalendarEvent[] = [];
+
+  for (const event of events) {
+    expanded.push(event);
+
+    if (event.recurrence_rule && event.sourceTable === 'tasks') {
+      const duration = differenceInMinutes(event.end, event.start);
+      let current = new Date(event.start);
+
+      for (let i = 0; i < 100; i++) {
+        if (event.recurrence_rule === 'daily') {
+          current = addDays(current, 1);
+        } else if (event.recurrence_rule === 'weekly') {
+          current = addDays(current, 7);
+        } else if (event.recurrence_rule === 'monthly') {
+          current = addMonths(current, 1);
+        } else {
+          break;
+        }
+
+        if (current > rangeEnd) break;
+        if (current < rangeStart) continue;
+
+        expanded.push({
+          ...event,
+          id: `${event.id}-recur-${i}`,
+          start: new Date(current),
+          end: new Date(current.getTime() + duration * 60000),
+        });
+      }
+    }
+  }
+
+  return expanded;
+}
+
 export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 0 })
   );
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [rawEvents, setRawEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [dragEvent, setDragEvent] = useState<CalendarEvent | null>(null);
@@ -80,8 +123,12 @@ export default function CalendarPage() {
     startTime: '09:00',
     endTime: '10:00',
     type: 'task' as EventType,
+    isRecurring: false,
+    recurrenceRule: 'weekly' as RecurrenceRule,
+    recurrenceEnd: '',
   });
   const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
 
   const weekDays = useMemo(
@@ -97,32 +144,44 @@ export default function CalendarPage() {
     return eachDayOfInterval({ start: calStart, end: calEnd });
   }, [currentMonth]);
 
+  // Compute visible date range
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    if (viewMode === 'week') {
+      return {
+        rangeStart: startOfDay(currentWeekStart),
+        rangeEnd: endOfDay(addDays(currentWeekStart, 6)),
+      };
+    } else {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      return {
+        rangeStart: startOfDay(startOfWeek(monthStart, { weekStartsOn: 0 })),
+        rangeEnd: endOfDay(addDays(startOfWeek(monthEnd, { weekStartsOn: 0 }), 6)),
+      };
+    }
+  }, [viewMode, currentWeekStart, currentMonth]);
+
+  // Expand recurring events
+  const events = useMemo(
+    () => expandRecurringEvents(rawEvents, rangeStart, rangeEnd),
+    [rawEvents, rangeStart, rangeEnd]
+  );
+
   useEffect(() => {
     if (user) fetchEvents();
   }, [user, currentWeekStart, currentMonth, viewMode]);
 
   const fetchEvents = async () => {
-    let startISO: string, endISO: string;
-
-    if (viewMode === 'week') {
-      startISO = startOfDay(currentWeekStart).toISOString();
-      endISO = endOfDay(addDays(currentWeekStart, 6)).toISOString();
-    } else {
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-      const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-      const calEnd = addDays(startOfWeek(monthEnd, { weekStartsOn: 0 }), 6);
-      startISO = startOfDay(calStart).toISOString();
-      endISO = endOfDay(calEnd).toISOString();
-    }
+    const startISO = rangeStart.toISOString();
+    const endISO = rangeEnd.toISOString();
 
     const results: CalendarEvent[] = [];
 
+    // Fetch tasks — also include recurring ones that started before range
     const { data: tasks } = await supabase
       .from('tasks')
       .select('*')
-      .gte('scheduled_at', startISO)
-      .lte('scheduled_at', endISO)
+      .or(`and(scheduled_at.gte.${startISO},scheduled_at.lte.${endISO}),recurrence_rule.not.is.null`)
       .order('scheduled_at');
 
     tasks?.forEach((t) => {
@@ -136,6 +195,7 @@ export default function CalendarPage() {
         type: 'task',
         is_completed: t.is_completed,
         sourceTable: 'tasks',
+        recurrence_rule: t.recurrence_rule,
       });
     });
 
@@ -188,34 +248,44 @@ export default function CalendarPage() {
       });
     });
 
-    setEvents(results);
+    setRawEvents(results);
   };
 
   const handleCreateEvent = async () => {
     if (!newEvent.title || !user) return;
     const startDate = new Date(`${newEvent.date}T${newEvent.startTime}`);
 
-    const { error } = await supabase.from('tasks').insert({
+    const insertData: any = {
       title: newEvent.title,
       description: newEvent.description || null,
       scheduled_at: startDate.toISOString(),
       user_id: user.id,
       is_completed: false,
-    });
+      workspace_id: activeWorkspace?.id || null,
+    };
+
+    if (newEvent.isRecurring && newEvent.recurrenceRule) {
+      insertData.recurrence_rule = newEvent.recurrenceRule;
+      if (newEvent.recurrenceEnd) {
+        insertData.recurrence_end = newEvent.recurrenceEnd;
+      }
+    }
+
+    const { error } = await supabase.from('tasks').insert(insertData);
 
     if (error) {
       toast({ title: 'Error', description: 'Failed to create event', variant: 'destructive' });
     } else {
       toast({ title: 'Event created' });
       setIsCreateOpen(false);
-      setNewEvent({ title: '', description: '', date: format(new Date(), 'yyyy-MM-dd'), startTime: '09:00', endTime: '10:00', type: 'task' });
+      setNewEvent({ title: '', description: '', date: format(new Date(), 'yyyy-MM-dd'), startTime: '09:00', endTime: '10:00', type: 'task', isRecurring: false, recurrenceRule: 'weekly', recurrenceEnd: '' });
       fetchEvents();
     }
   };
 
-  // Drag and drop handlers
+  // Drag and drop
   const handleDragStart = (event: CalendarEvent) => {
-    if (event.sourceTable !== 'tasks') return; // Only tasks can be dragged
+    if (event.sourceTable !== 'tasks' || event.id.includes('-recur-')) return;
     setDragEvent(event);
   };
 
@@ -227,7 +297,6 @@ export default function CalendarPage() {
   const handleDrop = async (e: React.DragEvent, day: Date, hour: number) => {
     e.preventDefault();
     setDragOverSlot(null);
-
     if (!dragEvent || dragEvent.sourceTable !== 'tasks') {
       setDragEvent(null);
       return;
@@ -237,15 +306,10 @@ export default function CalendarPage() {
     const newStart = new Date(day);
     newStart.setHours(hour, minutes, 0, 0);
 
-    // Optimistic update
-    setEvents((prev) =>
+    setRawEvents((prev) =>
       prev.map((ev) =>
         ev.id === dragEvent.id
-          ? {
-              ...ev,
-              start: newStart,
-              end: new Date(newStart.getTime() + differenceInMinutes(ev.end, ev.start) * 60000),
-            }
+          ? { ...ev, start: newStart, end: new Date(newStart.getTime() + differenceInMinutes(ev.end, ev.start) * 60000) }
           : ev
       )
     );
@@ -257,11 +321,10 @@ export default function CalendarPage() {
 
     if (error) {
       toast({ title: 'Error', description: 'Failed to reschedule', variant: 'destructive' });
-      fetchEvents(); // revert
+      fetchEvents();
     } else {
       toast({ title: 'Event rescheduled' });
     }
-
     setDragEvent(null);
   };
 
@@ -270,9 +333,8 @@ export default function CalendarPage() {
     setDragOverSlot(null);
   };
 
-  const getEventsForDayAndHour = (day: Date, hour: number) => {
-    return events.filter((e) => isSameDay(e.start, day) && getHours(e.start) === hour);
-  };
+  const getEventsForDayAndHour = (day: Date, hour: number) =>
+    events.filter((e) => isSameDay(e.start, day) && getHours(e.start) === hour);
 
   const getEventsForDay = (day: Date) => events.filter((e) => isSameDay(e.start, day));
 
@@ -395,7 +457,7 @@ export default function CalendarPage() {
 
       {/* Create Event Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Create Event</DialogTitle>
           </DialogHeader>
@@ -414,6 +476,7 @@ export default function CalendarPage() {
                 value={newEvent.description}
                 onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
                 placeholder="Optional description"
+                rows={2}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -443,6 +506,49 @@ export default function CalendarPage() {
                 <Input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} />
               </div>
             </div>
+
+            {/* Recurrence */}
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-muted-foreground" />
+                  Recurring Event
+                </Label>
+                <Switch
+                  checked={newEvent.isRecurring}
+                  onCheckedChange={(v) => setNewEvent({ ...newEvent, isRecurring: v })}
+                />
+              </div>
+
+              {newEvent.isRecurring && (
+                <div className="space-y-3 pl-6">
+                  <div>
+                    <Label className="text-xs">Repeat</Label>
+                    <Select
+                      value={newEvent.recurrenceRule || 'weekly'}
+                      onValueChange={(v) => setNewEvent({ ...newEvent, recurrenceRule: v as RecurrenceRule })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">End Date (optional)</Label>
+                    <Input
+                      type="date"
+                      value={newEvent.recurrenceEnd}
+                      onChange={(e) => setNewEvent({ ...newEvent, recurrenceEnd: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
@@ -454,18 +560,10 @@ export default function CalendarPage() {
   );
 }
 
-// ─── Week View Component ────────────────────────────────────────────────────────
+// ─── Week View ──────────────────────────────────────────────────────────────────
 function WeekView({
-  weekDays,
-  events,
-  getEventsForDayAndHour,
-  getEventStyle,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
-  dragEvent,
-  dragOverSlot,
+  weekDays, events, getEventsForDayAndHour, getEventStyle,
+  onDragStart, onDragOver, onDrop, onDragEnd, dragEvent, dragOverSlot,
 }: {
   weekDays: Date[];
   events: CalendarEvent[];
@@ -481,7 +579,6 @@ function WeekView({
   return (
     <div className="flex-1 overflow-auto">
       <div className="min-w-[800px]">
-        {/* Day headers */}
         <div className="grid grid-cols-[60px_repeat(7,1fr)] sticky top-0 z-10 bg-background border-b border-border">
           <div className="p-2 text-xs text-muted-foreground" />
           {weekDays.map((day) => {
@@ -500,7 +597,6 @@ function WeekView({
           })}
         </div>
 
-        {/* Time slots */}
         {HOURS.map((hour) => (
           <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/50 min-h-[60px]">
             <div className="p-1 text-[10px] text-muted-foreground text-right pr-2 pt-0 -translate-y-2">
@@ -520,12 +616,12 @@ function WeekView({
                   )}
                   onDragOver={(e) => onDragOver(e, day, hour)}
                   onDrop={(e) => onDrop(e, day, hour)}
-                  onDragLeave={() => {}}
                 >
                   {dayEvents.map((event) => {
                     const colors = EVENT_COLORS[event.type];
                     const style = getEventStyle(event);
-                    const isDraggable = event.sourceTable === 'tasks';
+                    const isDraggable = event.sourceTable === 'tasks' && !event.id.includes('-recur-');
+                    const isRecurring = !!event.recurrence_rule;
                     return (
                       <div
                         key={event.id}
@@ -539,17 +635,17 @@ function WeekView({
                         onDragEnd={onDragEnd}
                         className={cn(
                           'absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-0.5 overflow-hidden transition-opacity hover:opacity-80',
-                          colors.bg,
-                          colors.border,
+                          colors.bg, colors.border,
                           event.is_completed && 'opacity-50 line-through',
                           isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
                           dragEvent?.id === event.id && 'opacity-40'
                         )}
                         style={style}
-                        title={`${event.title}\n${format(event.start, 'h:mm a')} - ${format(event.end, 'h:mm a')}${isDraggable ? '\nDrag to reschedule' : ''}`}
+                        title={`${event.title}\n${format(event.start, 'h:mm a')} - ${format(event.end, 'h:mm a')}${isRecurring ? '\n🔄 Recurring' : ''}${isDraggable ? '\nDrag to reschedule' : ''}`}
                       >
                         <div className="flex items-center gap-1">
                           {isDraggable && <GripVertical className="h-2.5 w-2.5 shrink-0 opacity-50" />}
+                          {isRecurring && <Repeat className="h-2.5 w-2.5 shrink-0 opacity-60" />}
                           <p className={cn('text-[11px] font-medium truncate', colors.text)}>
                             {event.title}
                           </p>
@@ -570,13 +666,9 @@ function WeekView({
   );
 }
 
-// ─── Month View Component ───────────────────────────────────────────────────────
+// ─── Month View ─────────────────────────────────────────────────────────────────
 function MonthView({
-  monthDays,
-  currentMonth,
-  events,
-  getEventsForDay,
-  onDayClick,
+  monthDays, currentMonth, events, getEventsForDay, onDayClick,
 }: {
   monthDays: Date[];
   currentMonth: Date;
@@ -588,16 +680,12 @@ function MonthView({
 
   return (
     <div className="flex-1 overflow-auto p-4">
-      {/* Day labels */}
       <div className="grid grid-cols-7 mb-1">
         {weekDayLabels.map((label) => (
-          <div key={label} className="text-center text-xs font-medium text-muted-foreground py-2">
-            {label}
-          </div>
+          <div key={label} className="text-center text-xs font-medium text-muted-foreground py-2">{label}</div>
         ))}
       </div>
 
-      {/* Month grid */}
       <div className="grid grid-cols-7 auto-rows-fr border border-border rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
         {monthDays.map((day) => {
           const isToday = isSameDay(day, new Date());
@@ -613,12 +701,10 @@ function MonthView({
                 !isCurrentMonth && 'bg-muted/20 opacity-50'
               )}
             >
-              <p
-                className={cn(
-                  'text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full',
-                  isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'
-                )}
-              >
+              <p className={cn(
+                'text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full',
+                isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'
+              )}>
                 {format(day, 'd')}
               </p>
               <div className="space-y-0.5">
@@ -627,14 +713,9 @@ function MonthView({
                   return (
                     <div
                       key={event.id}
-                      className={cn(
-                        'text-[10px] px-1 py-0.5 rounded truncate font-medium border-l-2',
-                        colors.bg,
-                        colors.border,
-                        colors.text
-                      )}
+                      className={cn('text-[10px] px-1 py-0.5 rounded truncate font-medium border-l-2', colors.bg, colors.border, colors.text)}
                     >
-                      {event.title}
+                      {event.recurrence_rule && '🔄 '}{event.title}
                     </div>
                   );
                 })}
