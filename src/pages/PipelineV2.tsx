@@ -197,7 +197,7 @@ export default function PipelineV2() {
   );
 
   const getLeadsByColumn = (columnId: string) => 
-    filteredLeads.filter(lead => lead.status === columnId && (lead.pipeline === activeTab || lead.pipeline === null));
+    filteredLeads.filter(lead => lead.status === columnId && (lead.pipeline === activeTab || lead.pipeline === null || lead.pipeline === 'both'));
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -225,13 +225,20 @@ export default function PipelineV2() {
       });
     } else {
       // Direct update without dialog
+      const updates: any = { status: newStatus };
+      
+      // Cross-pipeline handoff: if moving to site_visit_scheduled in ops, also set pipeline to show in both
+      if (newStatus === 'site_visit_scheduled' && activeTab === 'ops') {
+        updates.pipeline = 'both';
+      }
+
       setLeads(prev => prev.map(l => 
-        l.id === leadId ? { ...l, status: newStatus } : l
+        l.id === leadId ? { ...l, status: newStatus, ...(updates.pipeline ? { pipeline: updates.pipeline } : {}) } : l
       ));
 
       await supabase
         .from('leads')
-        .update({ status: newStatus as any })
+        .update(updates)
         .eq('id', leadId);
     }
   };
@@ -249,6 +256,11 @@ export default function PipelineV2() {
     const leadUpdate: any = { status: toStatus };
     if (data.siteVisitTime) {
       leadUpdate.site_visit_time = data.siteVisitTime.toISOString();
+    }
+    
+    // Cross-pipeline handoff: site_visit_scheduled leads appear in both pipelines
+    if (toStatus === 'site_visit_scheduled') {
+      leadUpdate.pipeline = 'both';
     }
 
     await supabase
@@ -386,7 +398,7 @@ export default function PipelineV2() {
             onClearFilters={clearFilters}
           />
           <Badge variant="outline" className="text-xs">
-            {filteredLeads.filter(l => l.pipeline === activeTab || l.pipeline === null).length} leads
+            {filteredLeads.filter(l => l.pipeline === activeTab || l.pipeline === null || l.pipeline === 'both').length} leads
           </Badge>
         </div>
       </div>
