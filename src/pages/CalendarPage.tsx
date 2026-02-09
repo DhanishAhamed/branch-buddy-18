@@ -680,7 +680,38 @@ export default function CalendarPage() {
                   <p className="text-sm text-foreground">{selectedEvent.lead_name}</p>
                 </div>
               )}
-              {selectedEvent.is_completed !== undefined && (
+              {selectedEvent.is_completed !== undefined && selectedEvent.sourceTable === 'tasks' && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Badge variant={selectedEvent.is_completed ? 'secondary' : 'default'} className="mt-1">
+                      {selectedEvent.is_completed ? 'Completed' : 'Pending'}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant={selectedEvent.is_completed ? 'outline' : 'default'}
+                    size="sm"
+                    onClick={async () => {
+                      const realId = selectedEvent.id.includes('-recur-') ? selectedEvent.id.split('-recur-')[0] : selectedEvent.id;
+                      const newStatus = !selectedEvent.is_completed;
+                      const { error } = await supabase
+                        .from('tasks')
+                        .update({ is_completed: newStatus })
+                        .eq('id', realId);
+                      if (error) {
+                        toast({ title: 'Error', description: 'Failed to update task status', variant: 'destructive' });
+                      } else {
+                        toast({ title: newStatus ? 'Task completed ✓' : 'Task marked as pending' });
+                        setSelectedEvent({ ...selectedEvent, is_completed: newStatus });
+                        fetchEvents();
+                      }
+                    }}
+                  >
+                    {selectedEvent.is_completed ? 'Mark Incomplete' : 'Mark Complete'}
+                  </Button>
+                </div>
+              )}
+              {selectedEvent.is_completed !== undefined && selectedEvent.sourceTable !== 'tasks' && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Status</Label>
                   <Badge variant={selectedEvent.is_completed ? 'secondary' : 'default'} className="mt-1">

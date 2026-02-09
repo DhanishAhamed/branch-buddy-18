@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface BulkImportDialogProps {
@@ -25,9 +25,10 @@ interface ImportLead {
 export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [importResults, setImportResults] = useState<{ success: number; failed: number } | null>(null);
+  const [importResults, setImportResults] = useState<{ success: number; failed: number; duplicates: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
 
   const downloadTemplate = () => {
@@ -40,13 +41,12 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
 
-    // Set column widths
     worksheet['!cols'] = [
-      { wch: 20 }, // name
-      { wch: 25 }, // email
-      { wch: 15 }, // phone
-      { wch: 12 }, // source
-      { wch: 40 }, // notes
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 40 },
     ];
 
     XLSX.writeFile(workbook, 'leads_import_template.xlsx');
@@ -86,16 +86,38 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
     setIsImporting(true);
     let successCount = 0;
     let failedCount = 0;
+    const duplicateNames: string[] = [];
 
     try {
       const leads = await parseExcel(file);
-      
+
+      // Fetch existing leads to check for duplicates
+      const { data: existingLeads } = await supabase
+        .from('leads')
+        .select('name, email, phone');
+
+      const existingKeys = new Set(
+        (existingLeads || []).map(l => l.name?.trim().toLowerCase())
+      );
+
+      const newLeads: ImportLead[] = [];
+
       for (const lead of leads) {
         if (!lead.name) {
           failedCount++;
           continue;
         }
+        const key = lead.name.trim().toLowerCase();
+        if (existingKeys.has(key)) {
+          duplicateNames.push(lead.name);
+          continue;
+        }
+        newLeads.push(lead);
+        existingKeys.add(key); // prevent duplicates within same file
+      }
 
+      // Insert non-duplicate leads
+      for (const lead of newLeads) {
         const { error } = await supabase.from('leads').insert({
           name: lead.name,
           email: lead.email || null,
@@ -103,6 +125,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
           source: lead.source || 'import',
           notes: lead.notes || null,
           branch_id: profile.branch_id,
+          workspace_id: activeWorkspace?.id || null,
         });
 
         if (error) {
@@ -112,12 +135,12 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
         }
       }
 
-      setImportResults({ success: successCount, failed: failedCount });
-      
+      setImportResults({ success: successCount, failed: failedCount, duplicates: duplicateNames });
+
       if (successCount > 0) {
         toast({
           title: 'Import Complete',
-          description: `Successfully imported ${successCount} leads${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+          description: `Successfully imported ${successCount} leads${duplicateNames.length > 0 ? `, ${duplicateNames.length} duplicates skipped` : ''}${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
         });
         onSuccess();
       }
@@ -141,9 +164,9 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { 
-      if (!isOpen) resetDialog(); 
-      onOpenChange(isOpen); 
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) resetDialog();
+      onOpenChange(isOpen);
     }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -203,6 +226,19 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
                   <span className="text-sm">{importResults.success} leads imported successfully</span>
                 </div>
               )}
+              {importResults.duplicates.length > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm">{importResults.duplicates.length} leads already exist in CRM (skipped)</span>
+                  </div>
+                  <div className="ml-6 text-xs text-muted-foreground max-h-24 overflow-y-auto">
+                    {importResults.duplicates.map((name, i) => (
+                      <p key={i}>• {name}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
               {importResults.failed > 0 && (
                 <div className="flex items-center gap-2 text-destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -217,8 +253,8 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancel
             </Button>
-            <Button 
-              onClick={handleImport} 
+            <Button
+              onClick={handleImport}
               disabled={!file || isImporting}
               className="flex-1"
             >
