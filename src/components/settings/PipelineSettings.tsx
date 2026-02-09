@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,21 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { GitBranch, Plus, Trash2, GripVertical, Save } from 'lucide-react';
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface PipelineStage {
   id: string;
@@ -35,6 +50,10 @@ export function PipelineSettings() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [newStage, setNewStage] = useState({ name: '', label: '', pipeline: 'ops', color: colorOptions[0].value });
   const { toast } = useToast();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   useEffect(() => {
     fetchStages();
@@ -84,6 +103,31 @@ export function PipelineSettings() {
     toast({ title: 'Stage deleted' });
     fetchStages();
   };
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent, pipeline: string) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const pipelineStages = stages.filter(s => s.pipeline === pipeline);
+    const oldIndex = pipelineStages.findIndex(s => s.id === active.id);
+    const newIndex = pipelineStages.findIndex(s => s.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(pipelineStages, oldIndex, newIndex);
+
+    // Optimistic update
+    const otherStages = stages.filter(s => s.pipeline !== pipeline);
+    const updatedReordered = reordered.map((s, i) => ({ ...s, position: i }));
+    setStages([...otherStages, ...updatedReordered].sort((a, b) => a.pipeline.localeCompare(b.pipeline) || a.position - b.position));
+
+    // Persist all positions
+    const updates = updatedReordered.map(s =>
+      supabase.from('pipeline_stages').update({ position: s.position }).eq('id', s.id)
+    );
+    await Promise.all(updates);
+    toast({ title: 'Stage order updated' });
+  }, [stages, toast]);
 
   const opsStages = stages.filter(s => s.pipeline === 'ops');
   const salesStages = stages.filter(s => s.pipeline === 'sales');
@@ -142,38 +186,54 @@ export function PipelineSettings() {
         {/* Operational Pipeline */}
         <div>
           <h4 className="font-medium mb-3 text-sm text-muted-foreground">Operational Pipeline</h4>
-          <div className="space-y-2">
-            {opsStages.map((stage) => (
-              <StageRow
-                key={stage.id}
-                stage={stage}
-                onUpdate={updateStage}
-                onDelete={deleteStage}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(e) => handleDragEnd(e, 'ops')}
+          >
+            <SortableContext items={opsStages.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {opsStages.map((stage) => (
+                  <SortableStageRow
+                    key={stage.id}
+                    stage={stage}
+                    onUpdate={updateStage}
+                    onDelete={deleteStage}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {/* Sales Pipeline */}
         <div>
           <h4 className="font-medium mb-3 text-sm text-muted-foreground">Sales Pipeline</h4>
-          <div className="space-y-2">
-            {salesStages.map((stage) => (
-              <StageRow
-                key={stage.id}
-                stage={stage}
-                onUpdate={updateStage}
-                onDelete={deleteStage}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(e) => handleDragEnd(e, 'sales')}
+          >
+            <SortableContext items={salesStages.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {salesStages.map((stage) => (
+                  <SortableStageRow
+                    key={stage.id}
+                    stage={stage}
+                    onUpdate={updateStage}
+                    onDelete={deleteStage}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function StageRow({
+function SortableStageRow({
   stage,
   onUpdate,
   onDelete,
@@ -186,14 +246,35 @@ function StageRow({
   const [label, setLabel] = useState(stage.label);
   const [color, setColor] = useState(stage.color);
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: stage.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const handleSave = () => {
     onUpdate(stage.id, { label, color });
     setEditing(false);
   };
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-      <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg"
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
       
       {editing ? (
         <>
