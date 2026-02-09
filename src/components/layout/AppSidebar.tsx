@@ -1,4 +1,5 @@
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -31,6 +32,8 @@ import {
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
@@ -56,15 +59,48 @@ const portalItems = [
   { title: 'Rentals', url: '/portal/rentals', type: 'rentals' },
 ];
 
+const allSearchItems = [
+  ...mainItems.map(i => ({ title: i.title, url: i.url })),
+  ...adminItems.map(i => ({ title: i.title, url: i.url })),
+  ...portalItems.map(i => ({ title: i.title, url: i.url })),
+  { title: 'Owner Contacts', url: '/admin/owners' },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
   const { profile, isAdmin } = useAuth();
   const { toast } = useToast();
   const { signOut } = useAuth();
   const collapsed = state === 'collapsed';
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isActive = (path: string) => location.pathname === path;
+
+  // ⌘K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+        setSearchQuery('');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const filteredItems = allSearchItems.filter(item =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSearchSelect = (url: string) => {
+    navigate(url);
+    setSearchOpen(false);
+    setSearchQuery('');
+  };
 
   const copyPortalLink = (type: string) => {
     const link = `${window.location.origin}/portal/${type}`;
@@ -72,118 +108,42 @@ export function AppSidebar() {
     toast({ title: 'Link copied!', description: `${type} portal link copied to clipboard` });
   };
 
-  // Check if user can view owner contacts
   const canViewOwners = profile?.can_view_owners || isAdmin;
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      <SidebarContent className="px-3">
-        {/* Workspace Switcher */}
-        <SidebarGroup className="pt-6 pb-4">
-          <WorkspaceSwitcher collapsed={collapsed} />
-        </SidebarGroup>
-
-        {/* Search Bar */}
-        {!collapsed && (
-          <SidebarGroup className="pb-4">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent text-sidebar-foreground/60">
-              <Search className="h-4 w-4" />
-              <span className="text-sm">Search...</span>
-              <span className="ml-auto text-xs bg-sidebar-background px-1.5 py-0.5 rounded">⌘K</span>
-            </div>
+    <>
+      <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+        <SidebarContent className="px-3">
+          {/* Workspace Switcher */}
+          <SidebarGroup className="pt-6 pb-4">
+            <WorkspaceSwitcher collapsed={collapsed} />
           </SidebarGroup>
-        )}
 
-        {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-2">
-            {!collapsed && 'Main Menu'}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={isActive(item.url)}
-                    className={`transition-all duration-200 ${isActive(item.url) ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
-                  >
-                    <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="">
-                      <item.icon className="h-5 w-5" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-              
-              {/* Owner Contacts - Only visible to users with permission */}
-              {canViewOwners && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={isActive('/admin/owners')}
-                    className={`transition-all duration-200 ${isActive('/admin/owners') ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
-                  >
-                    <NavLink to="/admin/owners" className="flex items-center gap-3 py-2.5" activeClassName="">
-                      <Contact className="h-5 w-5" />
-                      {!collapsed && <span>Owner Contacts</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+          {/* Search Bar */}
+          {!collapsed && (
+            <SidebarGroup className="pb-4">
+              <button
+                onClick={() => { setSearchOpen(true); setSearchQuery(''); }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent text-sidebar-foreground/60 w-full text-left hover:bg-sidebar-accent/80 transition-colors"
+              >
+                <Search className="h-4 w-4" />
+                <span className="text-sm">Search...</span>
+                <span className="ml-auto text-xs bg-sidebar-background px-1.5 py-0.5 rounded">⌘K</span>
+              </button>
+            </SidebarGroup>
+          )}
 
-        {/* Portals Section with Copy Links */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-2">
-            {!collapsed && 'Customer Portals'}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {portalItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <div className="flex items-center">
-                    <SidebarMenuButton 
-                      asChild 
-                      isActive={isActive(item.url)}
-                      className={`flex-1 transition-all duration-200 ${isActive(item.url) ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
-                    >
-                      <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="">
-                        <Globe className="h-5 w-5" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                    {!collapsed && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                        onClick={() => copyPortalLink(item.type)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Admin Section */}
-        {isAdmin && (
+          {/* Main Navigation */}
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-2">
-              {!collapsed && 'Settings'}
+              {!collapsed && 'Main Menu'}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminItems.map((item) => (
+                {mainItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isActive(item.url)}
                       className={`transition-all duration-200 ${isActive(item.url) ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
                     >
@@ -194,37 +154,152 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+
+                {canViewOwners && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive('/admin/owners')}
+                      className={`transition-all duration-200 ${isActive('/admin/owners') ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
+                    >
+                      <NavLink to="/admin/owners" className="flex items-center gap-3 py-2.5" activeClassName="">
+                        <Contact className="h-5 w-5" />
+                        {!collapsed && <span>Owner Contacts</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
-      </SidebarContent>
 
-      {/* Footer with User Profile */}
-      <SidebarFooter className="border-t border-sidebar-border p-3">
-        <div className={`flex items-center gap-3 p-2 rounded-lg ${collapsed ? 'justify-center' : ''}`}>
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={profile?.avatar_url || ''} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-              {profile?.full_name?.charAt(0) || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-sidebar-foreground">{profile?.full_name || 'User'}</p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">{profile?.email}</p>
-            </div>
+          {/* Portals Section */}
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-2">
+              {!collapsed && 'Customer Portals'}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {portalItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <div className="flex items-center">
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.url)}
+                        className={`flex-1 transition-all duration-200 ${isActive(item.url) ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
+                      >
+                        <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="">
+                          <Globe className="h-5 w-5" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                      {!collapsed && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                          onClick={() => copyPortalLink(item.type)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {/* Admin Section */}
+          {isAdmin && (
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-2">
+                {!collapsed && 'Settings'}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {adminItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.url)}
+                        className={`transition-all duration-200 ${isActive(item.url) ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}
+                      >
+                        <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="">
+                          <item.icon className="h-5 w-5" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={signOut} 
-            className="shrink-0 text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+        </SidebarContent>
+
+        {/* Footer */}
+        <SidebarFooter className="border-t border-sidebar-border p-3">
+          <div className={`flex items-center gap-3 p-2 rounded-lg ${collapsed ? 'justify-center' : ''}`}>
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={profile?.avatar_url || ''} />
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                {profile?.full_name?.charAt(0) || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate text-sidebar-foreground">{profile?.full_name || 'User'}</p>
+                <p className="text-xs text-sidebar-foreground/60 truncate">{profile?.email}</p>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={signOut}
+              className="shrink-0 text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+
+      {/* Search Dialog */}
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="max-w-md p-0 gap-0">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search pages..."
+              className="border-0 shadow-none focus-visible:ring-0 px-0 h-8"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && filteredItems.length > 0) {
+                  handleSearchSelect(filteredItems[0].url);
+                }
+              }}
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto py-2">
+            {filteredItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No results found</p>
+            ) : (
+              filteredItems.map(item => (
+                <button
+                  key={item.url}
+                  onClick={() => handleSearchSelect(item.url)}
+                  className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-3"
+                >
+                  {item.title}
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

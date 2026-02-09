@@ -51,6 +51,7 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
   const [assignedTo, setAssignedTo] = useState('');
   const [staffProfiles, setStaffProfiles] = useState<Profile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateError, setDuplicateError] = useState('');
 
   // Validation errors
   const [emailError, setEmailError] = useState('');
@@ -63,6 +64,7 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
   useEffect(() => {
     if (open) {
       fetchStaff();
+      setDuplicateError('');
     }
   }, [open]);
 
@@ -126,6 +128,22 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
     setAssignedTo('');
     setEmailError('');
     setPhoneError('');
+    setDuplicateError('');
+  };
+
+  const checkDuplicate = async (leadName: string): Promise<boolean> => {
+    const trimmedName = leadName.trim().toLowerCase();
+    const { data } = await supabase
+      .from('leads')
+      .select('id, name')
+      .ilike('name', trimmedName);
+
+    if (data && data.length > 0) {
+      setDuplicateError(`Lead already exists in CRM with this name "${data[0].name}"`);
+      return true;
+    }
+    setDuplicateError('');
+    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -141,6 +159,14 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
     if (!emailValid || !phoneValid) return;
 
     setIsSubmitting(true);
+
+    // Check for duplicate
+    const isDuplicate = await checkDuplicate(name);
+    if (isDuplicate) {
+      setIsSubmitting(false);
+      return;
+    }
+
     const { error } = await supabase.from('leads').insert({
       name: name.trim(),
       email: email.trim() || null,
@@ -181,10 +207,23 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
         </DialogHeader>
         <ScrollArea className="max-h-[75vh] px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Duplicate Error */}
+            {duplicateError && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                {duplicateError}
+              </div>
+            )}
+
             {/* Name */}
             <div className="space-y-1.5">
               <Label htmlFor="name">Name *</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} />
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => { setName(e.target.value); setDuplicateError(''); }}
+                required
+                maxLength={100}
+              />
             </div>
 
             {/* Email */}
