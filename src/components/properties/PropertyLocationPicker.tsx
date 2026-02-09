@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import maplibregl from "maplibre-gl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, MapPin, Loader2 } from "lucide-react";
-import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES, DEFAULT_CENTER } from "@/lib/google-maps-config";
+import { OLA_MAPS_API_KEY, OLA_STYLE_URL, OLA_AUTOCOMPLETE_URL, DEFAULT_CENTER } from "@/lib/ola-maps-config";
 
 interface PropertyLocationPickerProps {
   value: { lat: number; lng: number } | null;
@@ -15,17 +15,9 @@ interface SearchResult {
   description: string;
   place_id: string;
   geometry?: {
-    location: {
-      lat: number;
-      lng: number;
-    };
+    location: { lat: number; lng: number };
   };
 }
-
-const containerStyle = {
-  width: "100%",
-  height: "100%",
-};
 
 export function PropertyLocationPicker({ value, onChange }: PropertyLocationPickerProps) {
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(value);
@@ -35,45 +27,67 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markerRef = useRef<maplibregl.Marker | null>(null);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
-
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-    autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-    placesServiceRef.current = new google.maps.places.PlacesService(map);
-  }, []);
-
-  const onMapUnmount = useCallback(() => {
-    mapRef.current = null;
-  }, []);
-
-  const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng) {
-      const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-      setPosition(newPos);
-    }
-  }, []);
-
-  const onMarkerDragEnd = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng) {
-      const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-      setPosition(newPos);
-    }
-  }, []);
-
+  // Init map
   useEffect(() => {
-    if (position) {
-      onChange(position);
-    }
+    if (!mapContainerRef.current) return;
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: OLA_STYLE_URL,
+      center: [center.lng, center.lat],
+      zoom: 14,
+      transformRequest: (url) => {
+        if (url.includes("api.olamaps.io")) {
+          const separator = url.includes("?") ? "&" : "?";
+          return { url: `${url}${separator}api_key=${OLA_MAPS_API_KEY}` };
+        }
+        return { url };
+      },
+    });
+
+    map.on("load", () => {
+      mapRef.current = map;
+
+      // Place initial marker if value exists
+      if (value) {
+        addMarker(map, value);
+      }
+    });
+
+    map.on("click", (e) => {
+      const newPos = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      setPosition(newPos);
+      addMarker(map, newPos);
+    });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  const addMarker = (map: maplibregl.Map, pos: { lat: number; lng: number }) => {
+    if (markerRef.current) markerRef.current.remove();
+    markerRef.current = new maplibregl.Marker({ draggable: true })
+      .setLngLat([pos.lng, pos.lat])
+      .addTo(map);
+
+    markerRef.current.on("dragend", () => {
+      const lngLat = markerRef.current!.getLngLat();
+      setPosition({ lat: lngLat.lat, lng: lngLat.lng });
+    });
+  };
+
+  // Propagate position changes
+  useEffect(() => {
+    if (position) onChange(position);
   }, [position, onChange]);
 
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -84,71 +98,41 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Pan to new center
+  // Pan to center
   useEffect(() => {
     if (mapRef.current) {
-      mapRef.current.panTo(center);
+      mapRef.current.flyTo({ center: [center.lng, center.lat], duration: 600 });
     }
   }, [center]);
 
-  const getPlaceDetails = useCallback((placeId: string): Promise<google.maps.places.PlaceResult | null> => {
-    return new Promise((resolve) => {
-      if (!placesServiceRef.current) {
-        resolve(null);
-        return;
-      }
-
-      placesServiceRef.current.getDetails(
-        { placeId, fields: ["geometry"] },
-        (result, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && result) {
-            resolve(result);
-          } else {
-            resolve(null);
-          }
-        }
-      );
-    });
-  }, []);
-
   const searchPlace = async () => {
     if (!searchQuery.trim()) return;
-    if (!autocompleteServiceRef.current) return;
-
     setIsSearching(true);
-
-    const request: google.maps.places.AutocompletionRequest = {
-      input: searchQuery,
-      componentRestrictions: { country: "in" },
-    };
-
-    autocompleteServiceRef.current.getPlacePredictions(request, async (predictions, status) => {
-      if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-        const resultsWithGeometry: SearchResult[] = await Promise.all(
-          predictions.slice(0, 5).map(async (prediction) => {
-            const details = await getPlaceDetails(prediction.place_id);
-            return {
-              description: prediction.description,
-              place_id: prediction.place_id,
-              geometry: details?.geometry?.location
-                ? {
-                    location: {
-                      lat: details.geometry.location.lat(),
-                      lng: details.geometry.location.lng(),
-                    },
-                  }
-                : undefined,
-            };
-          })
-        );
-        setSearchResults(resultsWithGeometry);
+    try {
+      const res = await fetch(
+        `${OLA_AUTOCOMPLETE_URL}?input=${encodeURIComponent(searchQuery)}&api_key=${OLA_MAPS_API_KEY}&location=${center.lat},${center.lng}`
+      );
+      const json = await res.json();
+      if (json.predictions && Array.isArray(json.predictions)) {
+        const results: SearchResult[] = json.predictions.slice(0, 5).map((p: any) => ({
+          description: p.description || p.structured_formatting?.main_text || "",
+          place_id: p.place_id || "",
+          geometry: p.geometry?.location
+            ? { location: { lat: p.geometry.location.lat, lng: p.geometry.location.lng } }
+            : undefined,
+        }));
+        setSearchResults(results);
         setShowResults(true);
       } else {
         setSearchResults([]);
         setShowResults(false);
       }
-      setIsSearching(false);
-    });
+    } catch (err) {
+      console.error("Autocomplete error:", err);
+      setSearchResults([]);
+      setShowResults(false);
+    }
+    setIsSearching(false);
   };
 
   const selectPlace = (result: SearchResult) => {
@@ -156,38 +140,16 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
       const newPos = result.geometry.location;
       setCenter(newPos);
       setPosition(newPos);
+      if (mapRef.current) addMarker(mapRef.current, newPos);
     }
     setSearchQuery(result.description);
     setShowResults(false);
   };
 
-  if (loadError) {
-    return (
-      <div className="space-y-3">
-        <Label>Map Location</Label>
-        <div className="h-[200px] rounded-lg overflow-hidden border border-border flex items-center justify-center bg-muted/50">
-          <p className="text-sm text-destructive">Failed to load map</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isLoaded) {
-    return (
-      <div className="space-y-3">
-        <Label>Map Location</Label>
-        <div className="h-[200px] rounded-lg overflow-hidden border border-border flex items-center justify-center bg-muted/50">
-          <div className="animate-pulse text-muted-foreground">Loading map...</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
       <Label>Map Location</Label>
 
-      {/* Place Search */}
       <div ref={searchRef} className="relative">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -227,35 +189,13 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
       <p className="text-xs text-muted-foreground">Click on the map to set location or search for a place</p>
 
       <div className="h-[200px] rounded-lg overflow-hidden border border-border">
-        <GoogleMap
-          mapContainerStyle={containerStyle}
-          center={center}
-          zoom={14}
-          onLoad={onMapLoad}
-          onUnmount={onMapUnmount}
-          onClick={onMapClick}
-          options={{
-            streetViewControl: false,
-            mapTypeControl: false,
-            fullscreenControl: false,
-          }}
-        >
-          {position && (
-            <Marker
-              position={position}
-              draggable
-              onDragEnd={onMarkerDragEnd}
-            />
-          )}
-        </GoogleMap>
+        <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
       </div>
 
       {position && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 text-primary" />
-          <span>
-            Lat: {position.lat.toFixed(6)}, Lng: {position.lng.toFixed(6)}
-          </span>
+          <span>Lat: {position.lat.toFixed(6)}, Lng: {position.lng.toFixed(6)}</span>
           <Button
             type="button"
             variant="ghost"
@@ -263,6 +203,7 @@ export function PropertyLocationPicker({ value, onChange }: PropertyLocationPick
             onClick={() => {
               setPosition(null);
               onChange(null);
+              if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
             }}
           >
             Clear
