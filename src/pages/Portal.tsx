@@ -360,7 +360,14 @@ export default function Portal() {
 
   const handleEnquiry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!enquiryProperty) return;
+    if (!enquiryProperty || !enquiryProperty.branch_id) {
+      toast({
+        title: 'Error',
+        description: 'Property information is incomplete. Please try another property.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     const { error } = await supabase.from('leads').insert({
@@ -376,6 +383,7 @@ export default function Portal() {
     setIsSubmitting(false);
 
     if (error) {
+      console.error('Portal enquiry insert error:', error);
       toast({
         title: 'Error',
         description: 'Failed to submit enquiry. Please try again.',
