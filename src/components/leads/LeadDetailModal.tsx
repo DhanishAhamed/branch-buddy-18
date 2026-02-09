@@ -21,7 +21,7 @@ import {
   User, Phone, Mail, Calendar, Building2,
   MessageSquare, Clock, MapPin, Eye, EyeOff,
   Copy, PhoneCall, Plus, Send, History, FileText,
-  Home, CheckCircle2, Circle
+  Home, CheckCircle2, Circle, ArrowRight
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -56,6 +56,15 @@ interface CallNote {
   followup_at: string | null;
   created_at: string;
   user_id: string;
+}
+
+interface StatusLog {
+  id: string;
+  from_status: string | null;
+  to_status: string;
+  changed_by: string;
+  notes: string | null;
+  created_at: string;
 }
 
 interface InterestedProperty {
@@ -115,6 +124,7 @@ const pipelineStages = [
 export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: LeadDetailModalProps) {
   const [lead, setLead] = useState<Lead | null>(null);
   const [callNotes, setCallNotes] = useState<CallNote[]>([]);
+  const [statusLogs, setStatusLogs] = useState<StatusLog[]>([]);
   const [interestedProperties, setInterestedProperties] = useState<InterestedProperty[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [showPhone, setShowPhone] = useState(false);
@@ -138,7 +148,7 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
   const fetchLeadDetails = async () => {
     if (!leadId) return;
 
-    const [leadRes, notesRes, propsRes, profilesRes] = await Promise.all([
+    const [leadRes, notesRes, propsRes, profilesRes, statusLogsRes] = await Promise.all([
       supabase.from('leads').select('*').eq('id', leadId).single(),
       supabase.from('call_notes').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }),
       supabase.from('lead_properties').select(`
@@ -152,12 +162,14 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
         )
       `).eq('lead_id', leadId),
       supabase.from('profiles').select('id, user_id, full_name'),
+      supabase.from('lead_status_log').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }),
     ]);
 
     if (leadRes.data) setLead(leadRes.data as Lead);
     if (notesRes.data) setCallNotes(notesRes.data);
     if (propsRes.data) setInterestedProperties(propsRes.data as any);
     if (profilesRes.data) setProfiles(profilesRes.data);
+    if (statusLogsRes.data) setStatusLogs(statusLogsRes.data as StatusLog[]);
   };
 
   const getProfileName = (userId: string) => {
@@ -217,6 +229,20 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
       date: lead.created_at,
       description: 'Lead was added to CRM',
       details: lead.source ? `Source: ${lead.source}` : undefined,
+    });
+
+    // Status changes
+    statusLogs.forEach(log => {
+      const fromLabel = log.from_status ? (statusConfig[log.from_status]?.label || log.from_status.replace(/_/g, ' ')) : 'New';
+      const toLabel = statusConfig[log.to_status]?.label || log.to_status.replace(/_/g, ' ');
+      events.push({
+        id: `status-${log.id}`,
+        type: 'status_change',
+        date: log.created_at,
+        description: `Status changed: ${fromLabel} → ${toLabel}`,
+        details: log.notes || undefined,
+        user: getProfileName(log.changed_by),
+      });
     });
 
     // Notes
@@ -690,11 +716,14 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
                           ? 'bg-blue-500/20 text-blue-600'
                           : event.type === 'property_added'
                           ? 'bg-purple-500/20 text-purple-600'
+                          : event.type === 'status_change'
+                          ? 'bg-amber-500/20 text-amber-600'
                           : 'bg-muted text-muted-foreground'
                       }`}>
                         {event.type === 'created' && <Plus className="h-3 w-3" />}
                         {event.type === 'note' && <MessageSquare className="h-3 w-3" />}
                         {event.type === 'property_added' && <Building2 className="h-3 w-3" />}
+                        {event.type === 'status_change' && <ArrowRight className="h-3 w-3" />}
                       </div>
                       
                       <div className="flex-1 min-w-0">

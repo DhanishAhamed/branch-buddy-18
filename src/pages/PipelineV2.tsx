@@ -240,6 +240,16 @@ export default function PipelineV2() {
         .from('leads')
         .update(updates)
         .eq('id', leadId);
+
+      // Log status change
+      if (profile?.user_id) {
+        await supabase.from('lead_status_log').insert({
+          lead_id: leadId,
+          from_status: fromStatus,
+          to_status: newStatus,
+          changed_by: profile.user_id,
+        });
+      }
     }
   };
 
@@ -322,9 +332,20 @@ export default function PipelineV2() {
       }
     }
 
+    // Log status change
+    if (profile?.user_id) {
+      await supabase.from('lead_status_log').insert({
+        lead_id: leadId,
+        from_status: transitionDialog.fromStatus,
+        to_status: toStatus,
+        changed_by: profile.user_id,
+        notes: data.callNotes || null,
+      });
+    }
+
     // Update local state
     setLeads(prev => prev.map(l => 
-      l.id === leadId ? { ...l, status: toStatus } : l
+      l.id === leadId ? { ...l, status: toStatus, ...(toStatus === 'site_visit_scheduled' ? { pipeline: 'both' } : {}) } : l
     ));
 
     setTransitionDialog({ open: false, leadId: '', leadName: '', fromStatus: '', toStatus: '' });

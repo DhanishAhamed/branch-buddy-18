@@ -161,6 +161,44 @@ export type Database = {
           },
         ]
       }
+      lead_status_log: {
+        Row: {
+          changed_by: string
+          created_at: string
+          from_status: string | null
+          id: string
+          lead_id: string
+          notes: string | null
+          to_status: string
+        }
+        Insert: {
+          changed_by: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          to_status: string
+        }
+        Update: {
+          changed_by?: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_status_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
