@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, UserPlus, Calendar, AlertCircle, X } from 'lucide-react';
+import { Bell, UserPlus, Calendar, AlertCircle, Clock, MapPin, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -17,11 +17,13 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
   id: string;
-  type: 'new_lead' | 'task_due' | 'follow_up';
   title: string;
-  description: string;
-  timestamp: Date;
-  read: boolean;
+  message: string | null;
+  type: string;
+  is_read: boolean;
+  link: string | null;
+  scheduled_for: string | null;
+  created_at: string;
 }
 
 export function NotificationBell() {
@@ -30,104 +32,86 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!user || !profile?.branch_id) return;
-
-    // Fetch initial notifications (recent leads and overdue tasks)
+    if (!user) return;
     fetchNotifications();
 
-    // Subscribe to new leads in real-time
-    const leadsChannel = supabase
-      .channel('new-leads')
+    // Subscribe to new notifications in real-time
+    const channel = supabase
+      .channel('notifications')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'leads',
-          filter: `branch_id=eq.${profile.branch_id}`,
-        },
-        (payload) => {
-          const newLead = payload.new as { id: string; name: string; created_at: string };
-          setNotifications((prev) => [
-            {
-              id: `lead-${newLead.id}`,
-              type: 'new_lead',
-              title: 'New Lead Added',
-              description: `${newLead.name} just submitted an inquiry`,
-              timestamp: new Date(newLead.created_at),
-              read: false,
-            },
-            ...prev.slice(0, 9), // Keep max 10 notifications
-          ]);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to new tasks
-    const tasksChannel = supabase
-      .channel('new-tasks')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'tasks',
+          table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newTask = payload.new as { id: string; title: string; created_at: string };
-          setNotifications((prev) => [
-            {
-              id: `task-${newTask.id}`,
-              type: 'task_due',
-              title: 'New Task Created',
-              description: newTask.title,
-              timestamp: new Date(newTask.created_at),
-              read: false,
-            },
-            ...prev.slice(0, 9),
-          ]);
+          const newNotif = payload.new as Notification;
+          setNotifications((prev) => [newNotif, ...prev].slice(0, 20));
         }
       )
       .subscribe();
 
+    // Also fetch recent leads as notifications (for admins/staff)
+    if (profile?.branch_id) {
+      const leadsChannel = supabase
+        .channel('new-leads-notif')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'leads',
+            filter: `branch_id=eq.${profile.branch_id}`,
+          },
+          (payload) => {
+            const newLead = payload.new as { id: string; name: string; created_at: string };
+            const leadNotif: Notification = {
+              id: `lead-${newLead.id}`,
+              title: 'New Lead Added',
+              message: `${newLead.name} submitted an inquiry`,
+              type: 'new_lead',
+              is_read: false,
+              link: null,
+              scheduled_for: null,
+              created_at: newLead.created_at,
+            };
+            setNotifications((prev) => [leadNotif, ...prev].slice(0, 20));
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+        supabase.removeChannel(leadsChannel);
+      };
+    }
+
     return () => {
-      supabase.removeChannel(leadsChannel);
-      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(channel);
     };
   }, [user, profile]);
 
   const fetchNotifications = async () => {
-    if (!user || !profile?.branch_id) return;
+    if (!user) return;
 
-    const notificationList: Notification[] = [];
-
-    // Get recent leads (last 24 hours)
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-
-    const { data: recentLeads } = await supabase
-      .from('leads')
-      .select('id, name, created_at')
-      .eq('branch_id', profile.branch_id)
-      .gte('created_at', oneDayAgo.toISOString())
+    // Fetch from notifications table - show due notifications and recent ones
+    const { data: dbNotifs } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .or(`scheduled_for.is.null,scheduled_for.lte.${new Date().toISOString()}`)
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(15);
 
-    if (recentLeads) {
-      recentLeads.forEach((lead) => {
-        notificationList.push({
-          id: `lead-${lead.id}`,
-          type: 'new_lead',
-          title: 'New Lead',
-          description: `${lead.name} submitted an inquiry`,
-          timestamp: new Date(lead.created_at),
-          read: false,
-        });
-      });
+    const allNotifs: Notification[] = [];
+
+    if (dbNotifs) {
+      allNotifs.push(...(dbNotifs as Notification[]));
     }
 
-    // Get overdue tasks
+    // Also get overdue tasks as notifications
     const { data: overdueTasks } = await supabase
       .from('tasks')
       .select('id, title, scheduled_at')
@@ -139,56 +123,78 @@ export function NotificationBell() {
 
     if (overdueTasks) {
       overdueTasks.forEach((task) => {
-        notificationList.push({
-          id: `task-${task.id}`,
-          type: 'task_due',
-          title: 'Task Overdue',
-          description: task.title,
-          timestamp: new Date(task.scheduled_at),
-          read: false,
-        });
+        // Avoid duplicates
+        if (!allNotifs.some(n => n.id === `task-overdue-${task.id}`)) {
+          allNotifs.push({
+            id: `task-overdue-${task.id}`,
+            title: 'Task Overdue',
+            message: task.title,
+            type: 'task_overdue',
+            is_read: false,
+            link: null,
+            scheduled_for: task.scheduled_at,
+            created_at: task.scheduled_at,
+          });
+        }
       });
     }
 
-    // Sort by timestamp
-    notificationList.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    setNotifications(notificationList.slice(0, 10));
+    // Sort by date, most recent first
+    allNotifs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setNotifications(allNotifs.slice(0, 20));
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
+    // If it's a DB notification (UUID format), update in DB
+    if (id.match(/^[0-9a-f-]{36}$/)) {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    }
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
   };
 
-  const clearAll = () => {
-    setNotifications([]);
-    setOpen(false);
+  const markAllRead = async () => {
+    if (!user) return;
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   };
 
-  const getIcon = (type: Notification['type']) => {
+  const getIcon = (type: string) => {
     switch (type) {
       case 'new_lead':
         return UserPlus;
-      case 'task_due':
-        return Calendar;
-      case 'follow_up':
+      case 'task_overdue':
         return AlertCircle;
+      case 'followup_reminder':
+        return Clock;
+      case 'site_visit_reminder':
+        return MapPin;
+      case 'task_reminder':
+        return Calendar;
       default:
         return Bell;
     }
   };
 
-  const getIconColor = (type: Notification['type']) => {
+  const getIconColor = (type: string) => {
     switch (type) {
       case 'new_lead':
         return 'text-primary bg-primary/10';
-      case 'task_due':
+      case 'task_overdue':
         return 'text-destructive bg-destructive/10';
-      case 'follow_up':
+      case 'followup_reminder':
         return 'text-amber-500 bg-amber-500/10';
+      case 'site_visit_reminder':
+        return 'text-emerald-500 bg-emerald-500/10';
+      case 'task_reminder':
+        return 'text-blue-500 bg-blue-500/10';
       default:
         return 'text-muted-foreground bg-muted';
     }
@@ -211,11 +217,14 @@ export function NotificationBell() {
           <DropdownMenuLabel className="text-sm font-semibold p-0">
             Notifications
           </DropdownMenuLabel>
-          {notifications.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearAll} className="h-7 text-xs">
-              Clear all
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={markAllRead} className="h-7 text-xs">
+                <CheckCheck className="h-3 w-3 mr-1" />
+                Read all
+              </Button>
+            )}
+          </div>
         </div>
         <DropdownMenuSeparator />
         <ScrollArea className="h-80">
@@ -232,7 +241,7 @@ export function NotificationBell() {
                   key={notification.id}
                   onClick={() => markAsRead(notification.id)}
                   className={`flex items-start gap-3 p-3 cursor-pointer ${
-                    !notification.read ? 'bg-primary/5' : ''
+                    !notification.is_read ? 'bg-primary/5' : ''
                   }`}
                 >
                   <div
@@ -245,15 +254,17 @@ export function NotificationBell() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium truncate">{notification.title}</p>
-                      {!notification.read && (
+                      {!notification.is_read && (
                         <Badge variant="secondary" className="h-1.5 w-1.5 p-0 rounded-full bg-primary" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {notification.description}
-                    </p>
+                    {notification.message && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {notification.message}
+                      </p>
+                    )}
                     <p className="text-[10px] text-muted-foreground/60 mt-1">
-                      {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
+                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                     </p>
                   </div>
                 </DropdownMenuItem>
