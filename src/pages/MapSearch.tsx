@@ -121,9 +121,8 @@ export default function MapSearch() {
       });
 
       map.on("error", (e) => {
-        console.error("Map error:", e);
-        setMapError("Failed to load map tiles");
-        setMapLoading(false);
+        // Ignore non-fatal style layer errors (e.g. missing 3d_model source layer)
+        console.warn("Map error (non-fatal):", e);
       });
 
       return () => {
