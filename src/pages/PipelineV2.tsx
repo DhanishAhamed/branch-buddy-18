@@ -12,13 +12,15 @@ import {
   KanbanProvider,
 } from '@/components/kibo-ui/kanban';
 import { StatusTransitionDialog } from '@/components/pipeline/StatusTransitionDialog';
-import { LeadDetailModal } from '@/components/pipeline/LeadDetailModal';
+import { LeadDetailModal } from '@/components/leads/LeadDetailModal';
+import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { LeadTemperatureBadge } from '@/components/pipeline/LeadTemperatureBadge';
 import { PipelineFilters } from '@/components/pipeline/PipelineFilters';
 import { useToast } from '@/hooks/use-toast';
 import { useLeadTemperature } from '@/hooks/use-lead-temperature';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Phone, Mail } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, Phone, Mail, Plus } from 'lucide-react';
 import { DragEndEvent } from '@dnd-kit/core';
 
 interface Lead {
@@ -72,6 +74,7 @@ export default function PipelineV2() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [activeTab, setActiveTab] = useState('ops');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { profile, isAdmin } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
@@ -341,6 +344,10 @@ export default function PipelineV2() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
         <div className="flex items-center gap-2">
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Lead
+          </Button>
           <PipelineFilters
             sources={sources}
             users={users}
@@ -468,6 +475,13 @@ export default function PipelineV2() {
         open={detailModal.open}
         onOpenChange={(open) => setDetailModal({ open, leadId: open ? detailModal.leadId : null })}
         leadId={detailModal.leadId}
+        onLeadUpdated={fetchLeads}
+      />
+
+      <AddLeadDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSuccess={fetchLeads}
       />
     </div>
   );

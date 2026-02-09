@@ -9,8 +9,11 @@ import { User, Phone } from 'lucide-react';
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { StatusTransitionDialog } from '@/components/pipeline/StatusTransitionDialog';
-import { LeadDetailModal } from '@/components/pipeline/LeadDetailModal';
+import { LeadDetailModal } from '@/components/leads/LeadDetailModal';
+import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { useToast } from '@/hooks/use-toast';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Lead {
   id: string;
@@ -105,6 +108,7 @@ export default function Pipeline() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [activeTab, setActiveTab] = useState('ops');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { profile } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
@@ -268,6 +272,10 @@ export default function Pipeline() {
     <div className="p-4 md:p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
+        <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Lead
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
@@ -312,6 +320,13 @@ export default function Pipeline() {
         open={detailModal.open}
         onOpenChange={(open) => setDetailModal({ open, leadId: open ? detailModal.leadId : null })}
         leadId={detailModal.leadId}
+        onLeadUpdated={fetchLeads}
+      />
+
+      <AddLeadDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSuccess={fetchLeads}
       />
     </div>
   );

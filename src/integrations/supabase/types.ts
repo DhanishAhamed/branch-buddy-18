@@ -164,15 +164,24 @@ export type Database = {
       leads: {
         Row: {
           assigned_to: string | null
+          bhk_options: string[] | null
           branch_id: string
+          budget_max: number | null
+          budget_min: number | null
           created_at: string
+          customer_type: string | null
           email: string | null
+          enquiry_date: string | null
+          expected_purchase_date: string | null
+          furnishing: string | null
           id: string
+          interested_places: string[] | null
           name: string
           notes: string | null
           phone: string | null
           pipeline: string | null
           property_id: string | null
+          property_type: string | null
           site_visit_time: string | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
@@ -181,15 +190,24 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          bhk_options?: string[] | null
           branch_id: string
+          budget_max?: number | null
+          budget_min?: number | null
           created_at?: string
+          customer_type?: string | null
           email?: string | null
+          enquiry_date?: string | null
+          expected_purchase_date?: string | null
+          furnishing?: string | null
           id?: string
+          interested_places?: string[] | null
           name: string
           notes?: string | null
           phone?: string | null
           pipeline?: string | null
           property_id?: string | null
+          property_type?: string | null
           site_visit_time?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
@@ -198,15 +216,24 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          bhk_options?: string[] | null
           branch_id?: string
+          budget_max?: number | null
+          budget_min?: number | null
           created_at?: string
+          customer_type?: string | null
           email?: string | null
+          enquiry_date?: string | null
+          expected_purchase_date?: string | null
+          furnishing?: string | null
           id?: string
+          interested_places?: string[] | null
           name?: string
           notes?: string | null
           phone?: string | null
           pipeline?: string | null
           property_id?: string | null
+          property_type?: string | null
           site_visit_time?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]

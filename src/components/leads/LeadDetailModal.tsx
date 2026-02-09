@@ -38,6 +38,15 @@ interface Lead {
   updated_at: string;
   site_visit_time: string | null;
   assigned_to: string | null;
+  interested_places: string[] | null;
+  property_type: string | null;
+  customer_type: string | null;
+  bhk_options: string[] | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  furnishing: string | null;
+  enquiry_date: string | null;
+  expected_purchase_date: string | null;
 }
 
 interface CallNote {
@@ -460,6 +469,80 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
                   )}
                 </CardContent>
               </Card>
+
+              {/* Preferences */}
+              {(lead.interested_places?.length || lead.property_type || lead.customer_type || lead.bhk_options?.length || lead.budget_min || lead.budget_max || lead.furnishing || lead.enquiry_date || lead.expected_purchase_date) && (
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <Home className="h-4 w-4" />
+                      Preferences
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {lead.property_type && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Property Type</p>
+                          <p className="font-medium">{lead.property_type}</p>
+                        </div>
+                      )}
+                      {lead.customer_type && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Customer Type</p>
+                          <p className="font-medium">{lead.customer_type}</p>
+                        </div>
+                      )}
+                      {lead.furnishing && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Furnishing</p>
+                          <p className="font-medium">{lead.furnishing}</p>
+                        </div>
+                      )}
+                      {(lead.budget_min || lead.budget_max) && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Budget</p>
+                          <p className="font-medium">
+                            {lead.budget_min ? `₹${Number(lead.budget_min).toLocaleString()}` : '—'}
+                            {' – '}
+                            {lead.budget_max ? `₹${Number(lead.budget_max).toLocaleString()}` : '—'}
+                          </p>
+                        </div>
+                      )}
+                      {lead.enquiry_date && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Enquiry Date</p>
+                          <p className="font-medium">{format(new Date(lead.enquiry_date), 'dd MMM yyyy')}</p>
+                        </div>
+                      )}
+                      {lead.expected_purchase_date && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Expected Purchase</p>
+                          <p className="font-medium">{format(new Date(lead.expected_purchase_date), 'dd MMM yyyy')}</p>
+                        </div>
+                      )}
+                    </div>
+                    {lead.bhk_options && lead.bhk_options.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">BHK</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {lead.bhk_options.map(bhk => (
+                            <Badge key={bhk} variant="secondary">{bhk}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {lead.interested_places && lead.interested_places.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Interested Places</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {lead.interested_places.map(place => (
+                            <Badge key={place} variant="outline">{place}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Notes Tab */}

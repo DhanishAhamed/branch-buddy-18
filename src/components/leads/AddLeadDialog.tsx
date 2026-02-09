@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { X, Plus } from 'lucide-react';
 
 interface AddLeadDialogProps {
   open: boolean;
@@ -15,115 +19,371 @@ interface AddLeadDialogProps {
   onSuccess: () => void;
 }
 
+interface Profile {
+  user_id: string;
+  full_name: string | null;
+}
+
+const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
+const FURNISHING_OPTIONS = ['Furnished', 'Semi-Furnished', 'Unfurnished'];
+const CUSTOMER_TYPES = ['Family', 'Bachelor', 'Couple'];
+const PROPERTY_TYPES = ['Apartment', 'Villa', 'Plot', 'Commercial', 'Penthouse', 'Row House', 'Studio'];
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phoneRegex = /^[+]?[\d\s\-()]{7,15}$/;
+
 export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [source, setSource] = useState('direct');
+  const [interestedPlaces, setInterestedPlaces] = useState<string[]>([]);
+  const [placeInput, setPlaceInput] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [customerType, setCustomerType] = useState('');
+  const [selectedBhk, setSelectedBhk] = useState<string[]>([]);
+  const [budgetMin, setBudgetMin] = useState('');
+  const [budgetMax, setBudgetMax] = useState('');
+  const [furnishing, setFurnishing] = useState('');
+  const [enquiryDate, setEnquiryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expectedPurchaseDate, setExpectedPurchaseDate] = useState('');
+  const [extraNote, setExtraNote] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
+  const [staffProfiles, setStaffProfiles] = useState<Profile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validation errors
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
   const { profile } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (open) {
+      fetchStaff();
+    }
+  }, [open]);
+
+  const fetchStaff = async () => {
+    const { data } = await supabase.from('profiles').select('user_id, full_name');
+    if (data) setStaffProfiles(data);
+  };
+
+  const validateEmail = (val: string) => {
+    if (val && !emailRegex.test(val)) {
+      setEmailError('Invalid email format');
+      return false;
+    }
+    setEmailError('');
+    return true;
+  };
+
+  const validatePhone = (val: string) => {
+    if (val && !phoneRegex.test(val)) {
+      setPhoneError('Invalid phone format (7-15 digits)');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  };
+
+  const addPlace = () => {
+    const trimmed = placeInput.trim();
+    if (trimmed && !interestedPlaces.includes(trimmed)) {
+      setInterestedPlaces([...interestedPlaces, trimmed]);
+      setPlaceInput('');
+    }
+  };
+
+  const removePlace = (place: string) => {
+    setInterestedPlaces(interestedPlaces.filter(p => p !== place));
+  };
+
+  const toggleBhk = (bhk: string) => {
+    setSelectedBhk(prev =>
+      prev.includes(bhk) ? prev.filter(b => b !== bhk) : [...prev, bhk]
+    );
+  };
+
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setPhone('');
+    setSource('direct');
+    setInterestedPlaces([]);
+    setPlaceInput('');
+    setPropertyType('');
+    setCustomerType('');
+    setSelectedBhk([]);
+    setBudgetMin('');
+    setBudgetMax('');
+    setFurnishing('');
+    setEnquiryDate(new Date().toISOString().split('T')[0]);
+    setExpectedPurchaseDate('');
+    setExtraNote('');
+    setAssignedTo('');
+    setEmailError('');
+    setPhoneError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!profile?.branch_id) {
-      toast({
-        title: 'Error',
-        description: 'No branch assigned. Please contact admin.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'No branch assigned. Please contact admin.', variant: 'destructive' });
       return;
     }
 
+    const emailValid = validateEmail(email);
+    const phoneValid = validatePhone(phone);
+    if (!emailValid || !phoneValid) return;
+
     setIsSubmitting(true);
     const { error } = await supabase.from('leads').insert({
-      name,
-      email: email || null,
-      phone: phone || null,
+      name: name.trim(),
+      email: email.trim() || null,
+      phone: phone.trim() || null,
       source,
       branch_id: profile.branch_id,
       workspace_id: activeWorkspace?.id || null,
+      notes: extraNote.trim() || null,
+      assigned_to: assignedTo || null,
+      interested_places: interestedPlaces.length > 0 ? interestedPlaces : [],
+      property_type: propertyType || null,
+      customer_type: customerType || null,
+      bhk_options: selectedBhk.length > 0 ? selectedBhk : [],
+      budget_min: budgetMin ? Number(budgetMin) : null,
+      budget_max: budgetMax ? Number(budgetMax) : null,
+      furnishing: furnishing || null,
+      enquiry_date: enquiryDate || null,
+      expected_purchase_date: expectedPurchaseDate || null,
     });
 
     setIsSubmitting(false);
 
     if (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to add lead',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to add lead', variant: 'destructive' });
     } else {
-      toast({
-        title: 'Success',
-        description: 'Lead added successfully',
-      });
+      toast({ title: 'Success', description: 'Lead added successfully' });
       onSuccess();
       onOpenChange(false);
-      setName('');
-      setEmail('');
-      setPhone('');
-      setSource('direct');
+      resetForm();
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] p-0">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle>Add New Lead</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="source">Source</Label>
-            <Select value={source} onValueChange={setSource}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="direct">Direct</SelectItem>
-                <SelectItem value="portal">Portal</SelectItem>
-                <SelectItem value="referral">Referral</SelectItem>
-                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting ? 'Adding...' : 'Add Lead'}
-            </Button>
-          </div>
-        </form>
+        <ScrollArea className="max-h-[75vh] px-6 pb-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Name *</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); validateEmail(e.target.value); }}
+                maxLength={255}
+              />
+              {emailError && <p className="text-xs text-destructive">{emailError}</p>}
+            </div>
+
+            {/* Phone */}
+            <div className="space-y-1.5">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); validatePhone(e.target.value); }}
+                placeholder="+91 9876543210"
+                maxLength={15}
+              />
+              {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
+            </div>
+
+            {/* Source */}
+            <div className="space-y-1.5">
+              <Label>Source</Label>
+              <Select value={source} onValueChange={setSource}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="direct">Direct</SelectItem>
+                  <SelectItem value="portal">Portal</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Assign Salesperson */}
+            <div className="space-y-1.5">
+              <Label>Assign Salesperson</Label>
+              <Select value={assignedTo} onValueChange={setAssignedTo}>
+                <SelectTrigger><SelectValue placeholder="Select salesperson" /></SelectTrigger>
+                <SelectContent>
+                  {staffProfiles.map(p => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.full_name || 'Unknown'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Interested Places */}
+            <div className="space-y-1.5">
+              <Label>Interested Places</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={placeInput}
+                  onChange={(e) => setPlaceInput(e.target.value)}
+                  placeholder="e.g. Baner, Wakad"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPlace(); } }}
+                  maxLength={100}
+                />
+                <Button type="button" variant="outline" size="icon" onClick={addPlace} className="shrink-0">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {interestedPlaces.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {interestedPlaces.map(place => (
+                    <Badge key={place} variant="secondary" className="gap-1">
+                      {place}
+                      <button type="button" onClick={() => removePlace(place)}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Property Type */}
+            <div className="space-y-1.5">
+              <Label>Property Type</Label>
+              <Select value={propertyType} onValueChange={setPropertyType}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent>
+                  {PROPERTY_TYPES.map(t => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Customer Type */}
+            <div className="space-y-1.5">
+              <Label>Customer Type</Label>
+              <Select value={customerType} onValueChange={setCustomerType}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent>
+                  {CUSTOMER_TYPES.map(t => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* BHK Options */}
+            <div className="space-y-1.5">
+              <Label>BHK Options</Label>
+              <div className="flex flex-wrap gap-2">
+                {BHK_OPTIONS.map(bhk => (
+                  <Badge
+                    key={bhk}
+                    variant={selectedBhk.includes(bhk) ? 'default' : 'outline'}
+                    className="cursor-pointer select-none"
+                    onClick={() => toggleBhk(bhk)}
+                  >
+                    {bhk}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Budget */}
+            <div className="space-y-1.5">
+              <Label>Budget (₹)</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={budgetMin}
+                  onChange={(e) => setBudgetMin(e.target.value)}
+                  min={0}
+                />
+                <span className="flex items-center text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={budgetMax}
+                  onChange={(e) => setBudgetMax(e.target.value)}
+                  min={0}
+                />
+              </div>
+            </div>
+
+            {/* Furnishing */}
+            <div className="space-y-1.5">
+              <Label>Furnishing</Label>
+              <Select value={furnishing} onValueChange={setFurnishing}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  {FURNISHING_OPTIONS.map(f => (
+                    <SelectItem key={f} value={f}>{f}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Enquiry Date</Label>
+                <Input type="date" value={enquiryDate} onChange={(e) => setEnquiryDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Expected Purchase Date</Label>
+                <Input type="date" value={expectedPurchaseDate} onChange={(e) => setExpectedPurchaseDate(e.target.value)} />
+              </div>
+            </div>
+
+            {/* Extra Note */}
+            <div className="space-y-1.5">
+              <Label>Extra Note</Label>
+              <Textarea
+                value={extraNote}
+                onChange={(e) => setExtraNote(e.target.value)}
+                placeholder="Any additional notes..."
+                maxLength={1000}
+                className="min-h-[60px]"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="flex-1">
+                {isSubmitting ? 'Adding...' : 'Add Lead'}
+              </Button>
+            </div>
+          </form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
