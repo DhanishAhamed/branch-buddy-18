@@ -511,7 +511,10 @@ export type Database = {
           id: string
           is_completed: boolean
           lead_id: string | null
+          parent_task_id: string | null
           property_id: string | null
+          recurrence_end: string | null
+          recurrence_rule: string | null
           scheduled_at: string
           title: string
           user_id: string
@@ -523,7 +526,10 @@ export type Database = {
           id?: string
           is_completed?: boolean
           lead_id?: string | null
+          parent_task_id?: string | null
           property_id?: string | null
+          recurrence_end?: string | null
+          recurrence_rule?: string | null
           scheduled_at: string
           title: string
           user_id: string
@@ -535,7 +541,10 @@ export type Database = {
           id?: string
           is_completed?: boolean
           lead_id?: string | null
+          parent_task_id?: string | null
           property_id?: string | null
+          recurrence_end?: string | null
+          recurrence_rule?: string | null
           scheduled_at?: string
           title?: string
           user_id?: string
@@ -547,6 +556,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
           {
