@@ -784,6 +784,10 @@ function WeekView({
   dragOverSlot: { day: Date; hour: number } | null;
   onEventClick: (event: CalendarEvent) => void;
 }) {
+  // Track mousedown to distinguish click vs drag
+  const [mouseDownInfo, setMouseDownInfo] = useState<{ id: string; x: number; y: number; time: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="min-w-[800px]">
@@ -834,14 +838,29 @@ function WeekView({
                       <div
                         key={event.id}
                         draggable={isDraggable}
-                        onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
+                        onMouseDown={(e) => {
+                          setMouseDownInfo({ id: event.id, x: e.clientX, y: e.clientY, time: Date.now() });
+                          setIsDragging(false);
+                        }}
                         onDragStart={(e) => {
                           if (isDraggable) {
+                            setIsDragging(true);
                             e.dataTransfer.effectAllowed = 'move';
                             onDragStart(event);
                           }
                         }}
-                        onDragEnd={onDragEnd}
+                        onDragEnd={() => {
+                          setIsDragging(false);
+                          setMouseDownInfo(null);
+                          onDragEnd();
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Only open modal if not dragging
+                          if (!isDragging) {
+                            onEventClick(event);
+                          }
+                        }}
                         className={cn(
                           'absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-0.5 overflow-hidden transition-opacity hover:opacity-80 cursor-pointer',
                           colors.bg, colors.border,
@@ -850,10 +869,9 @@ function WeekView({
                           dragEvent?.id === event.id && 'opacity-40'
                         )}
                         style={style}
-                        title={`${event.title}\n${format(event.start, 'h:mm a')} - ${format(event.end, 'h:mm a')}${isRecurring ? '\n🔄 Recurring' : ''}${isDraggable ? '\nDrag to reschedule' : ''}`}
+                        title={`${event.title}\n${format(event.start, 'h:mm a')} - ${format(event.end, 'h:mm a')}${isRecurring ? '\n🔄 Recurring' : ''}${isDraggable ? '\nHold & drag to reschedule' : ''}`}
                       >
                         <div className="flex items-center gap-1">
-                          {isDraggable && <GripVertical className="h-2.5 w-2.5 shrink-0 opacity-50" />}
                           {isRecurring && <Repeat className="h-2.5 w-2.5 shrink-0 opacity-60" />}
                           <p className={cn('text-[11px] font-medium truncate', colors.text)}>
                             {event.title}
