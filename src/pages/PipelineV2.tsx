@@ -33,6 +33,7 @@ interface Lead {
   created_at: string;
   assigned_to: string | null;
   source: string | null;
+  workspace_id: string | null;
 }
 
 interface Property {
@@ -125,10 +126,12 @@ export default function PipelineV2() {
   };
 
   const fetchLeads = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('leads')
-      .select('id, name, phone, email, status, pipeline, created_at, assigned_to, source')
+      .select('id, name, phone, email, status, pipeline, created_at, assigned_to, source, workspace_id')
       .order('created_at', { ascending: false });
+    
+    const { data } = await query;
     if (data) setLeads(data);
   };
 
@@ -197,7 +200,15 @@ export default function PipelineV2() {
   );
 
   const getLeadsByColumn = (columnId: string) => 
-    filteredLeads.filter(lead => lead.status === columnId && (lead.pipeline === activeTab || lead.pipeline === null || lead.pipeline === 'both'));
+    filteredLeads.filter(lead => {
+      // Status must match the column
+      if (lead.status !== columnId) return false;
+      // Pipeline filtering: show leads that belong to this tab or are cross-pipeline ('both')
+      if (lead.pipeline === activeTab || lead.pipeline === 'both') return true;
+      // Also show leads with null pipeline in ops (default)
+      if (lead.pipeline === null && activeTab === 'ops') return true;
+      return false;
+    });
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;

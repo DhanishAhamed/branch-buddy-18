@@ -12,8 +12,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useLeadTemperature } from '@/hooks/use-lead-temperature';
 import { LeadTemperatureBadge } from '@/components/pipeline/LeadTemperatureBadge';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +23,7 @@ import {
   User, Phone, Mail, Calendar, Building2,
   MessageSquare, Clock, MapPin, Eye, EyeOff,
   Copy, PhoneCall, Plus, Send, History, FileText,
-  Home, CheckCircle2, Circle, ArrowRight
+  Home, CheckCircle2, Circle, ArrowRight, UserPlus
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -132,6 +134,7 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
   const { profile, isAdmin } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { getLeadTemperature, showTemperatureIndicator } = useLeadTemperature();
   const { toast } = useToast();
 
@@ -470,12 +473,47 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
                         {status.label}
                       </Badge>
                     </div>
-                    {lead.assigned_to && (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Assigned To</p>
-                        <p className="font-medium">{getProfileName(lead.assigned_to)}</p>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Assigned To</p>
+                      {isAdmin ? (
+                        <Select
+                          value={lead.assigned_to || 'unassigned'}
+                          onValueChange={async (value) => {
+                            const newAssignee = value === 'unassigned' ? null : value;
+                            await supabase.from('leads').update({ assigned_to: newAssignee }).eq('id', lead.id);
+                            setLead({ ...lead, assigned_to: newAssignee });
+                            
+                            // Create notification for the assigned user
+                            if (newAssignee && profile?.user_id) {
+                              await supabase.from('notifications').insert({
+                                user_id: newAssignee,
+                                title: 'Lead Assigned to You',
+                                message: `${lead.name} has been assigned to you by ${profile.full_name || 'Admin'}`,
+                                type: 'lead_assigned',
+                                related_lead_id: lead.id,
+                              });
+                            }
+                            
+                            toast({ title: newAssignee ? `Lead assigned to ${getProfileName(newAssignee)}` : 'Lead unassigned' });
+                            onLeadUpdated?.();
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-full">
+                            <SelectValue placeholder="Assign to..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {profiles.map((p) => (
+                              <SelectItem key={p.user_id} value={p.user_id}>
+                                {p.full_name || 'Unknown'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="font-medium">{lead.assigned_to ? getProfileName(lead.assigned_to) : 'Unassigned'}</p>
+                      )}
+                    </div>
                   </div>
 
                   {lead.site_visit_time && (
