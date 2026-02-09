@@ -19,13 +19,13 @@ import {
   eachDayOfInterval,
 } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, GripVertical, Repeat } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, GripVertical, Repeat, Trash2, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -126,6 +127,16 @@ export default function CalendarPage() {
     isRecurring: false,
     recurrenceRule: 'weekly' as RecurrenceRule,
     recurrenceEnd: '',
+  });
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    date: '',
+    startTime: '09:00',
   });
   const { user } = useAuth();
   const { activeWorkspace } = useWorkspace();
@@ -347,6 +358,72 @@ export default function CalendarPage() {
     };
   };
 
+  // Event click → open detail modal
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setEditForm({
+      title: event.title,
+      description: event.description || '',
+      date: format(event.start, 'yyyy-MM-dd'),
+      startTime: format(event.start, 'HH:mm'),
+    });
+    setIsEditing(false);
+    setIsDetailOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!selectedEvent || selectedEvent.sourceTable !== 'tasks') return;
+    const realId = selectedEvent.id.includes('-recur-') ? selectedEvent.id.split('-recur-')[0] : selectedEvent.id;
+
+    const startDate = new Date(`${editForm.date}T${editForm.startTime}`);
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        title: editForm.title,
+        description: editForm.description || null,
+        scheduled_at: startDate.toISOString(),
+      })
+      .eq('id', realId);
+
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to update event', variant: 'destructive' });
+    } else {
+      toast({ title: 'Event updated' });
+      setIsDetailOpen(false);
+      fetchEvents();
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!selectedEvent) return;
+    const realId = selectedEvent.id.includes('-recur-') ? selectedEvent.id.split('-recur-')[0] : selectedEvent.id;
+
+    if (selectedEvent.sourceTable === 'tasks') {
+      const { error } = await supabase.from('tasks').delete().eq('id', realId);
+      if (error) {
+        toast({ title: 'Error', description: 'Failed to delete event', variant: 'destructive' });
+        return;
+      }
+    } else if (selectedEvent.sourceTable === 'call_notes') {
+      const { error } = await supabase.from('call_notes').update({ followup_at: null }).eq('id', realId);
+      if (error) {
+        toast({ title: 'Error', description: 'Failed to remove follow-up', variant: 'destructive' });
+        return;
+      }
+    } else if (selectedEvent.sourceTable === 'leads') {
+      const { error } = await supabase.from('leads').update({ site_visit_time: null }).eq('id', realId);
+      if (error) {
+        toast({ title: 'Error', description: 'Failed to remove site visit', variant: 'destructive' });
+        return;
+      }
+    }
+
+    toast({ title: 'Event deleted' });
+    setIsDeleteConfirmOpen(false);
+    setIsDetailOpen(false);
+    fetchEvents();
+  };
+
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
@@ -440,6 +517,7 @@ export default function CalendarPage() {
           onDragEnd={handleDragEnd}
           dragEvent={dragEvent}
           dragOverSlot={dragOverSlot}
+          onEventClick={handleEventClick}
         />
       ) : (
         <MonthView
@@ -452,6 +530,7 @@ export default function CalendarPage() {
             setCurrentWeekStart(startOfWeek(day, { weekStartsOn: 0 }));
             setViewMode('week');
           }}
+          onEventClick={handleEventClick}
         />
       )}
 
@@ -556,6 +635,134 @@ export default function CalendarPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Event Detail / Edit Modal */}
+      <Dialog open={isDetailOpen} onOpenChange={(open) => { setIsDetailOpen(open); if (!open) setIsEditing(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedEvent && (
+                <div className={cn('h-3 w-3 rounded-sm', EVENT_COLORS[selectedEvent.type].dot)} />
+              )}
+              {isEditing ? 'Edit Event' : 'Event Details'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedEvent && EVENT_LABELS[selectedEvent.type]}
+              {selectedEvent?.recurrence_rule && ` · Repeats ${selectedEvent.recurrence_rule}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedEvent && !isEditing && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Title</Label>
+                <p className="text-sm font-medium text-foreground">{selectedEvent.title}</p>
+              </div>
+              {selectedEvent.description && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Description</Label>
+                  <p className="text-sm text-foreground">{selectedEvent.description}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Date</Label>
+                  <p className="text-sm text-foreground">{format(selectedEvent.start, 'MMM d, yyyy')}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Time</Label>
+                  <p className="text-sm text-foreground">{format(selectedEvent.start, 'h:mm a')} – {format(selectedEvent.end, 'h:mm a')}</p>
+                </div>
+              </div>
+              {selectedEvent.lead_name && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Lead</Label>
+                  <p className="text-sm text-foreground">{selectedEvent.lead_name}</p>
+                </div>
+              )}
+              {selectedEvent.is_completed !== undefined && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Badge variant={selectedEvent.is_completed ? 'secondary' : 'default'} className="mt-1">
+                    {selectedEvent.is_completed ? 'Completed' : 'Pending'}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedEvent && isEditing && selectedEvent.sourceTable === 'tasks' && (
+            <div className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={2} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Date</Label>
+                  <Input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Time</Label>
+                  <Input type="time" value={editForm.startTime} onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-row justify-between sm:justify-between">
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+            <div className="flex gap-2">
+              {!isEditing && selectedEvent?.sourceTable === 'tasks' && (
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => setIsEditing(true)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              )}
+              {isEditing && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
+                  <Button size="sm" onClick={handleEditSave} disabled={!editForm.title}>Save</Button>
+                </>
+              )}
+              {!isEditing && (
+                <Button variant="outline" size="sm" onClick={() => setIsDetailOpen(false)}>Close</Button>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedEvent?.title}"? This action cannot be undone.
+              {selectedEvent?.recurrence_rule && ' This will delete all occurrences of this recurring event.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEvent} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -563,7 +770,7 @@ export default function CalendarPage() {
 // ─── Week View ──────────────────────────────────────────────────────────────────
 function WeekView({
   weekDays, events, getEventsForDayAndHour, getEventStyle,
-  onDragStart, onDragOver, onDrop, onDragEnd, dragEvent, dragOverSlot,
+  onDragStart, onDragOver, onDrop, onDragEnd, dragEvent, dragOverSlot, onEventClick,
 }: {
   weekDays: Date[];
   events: CalendarEvent[];
@@ -575,6 +782,7 @@ function WeekView({
   onDragEnd: () => void;
   dragEvent: CalendarEvent | null;
   dragOverSlot: { day: Date; hour: number } | null;
+  onEventClick: (event: CalendarEvent) => void;
 }) {
   return (
     <div className="flex-1 overflow-auto">
@@ -626,6 +834,7 @@ function WeekView({
                       <div
                         key={event.id}
                         draggable={isDraggable}
+                        onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                         onDragStart={(e) => {
                           if (isDraggable) {
                             e.dataTransfer.effectAllowed = 'move';
@@ -634,10 +843,10 @@ function WeekView({
                         }}
                         onDragEnd={onDragEnd}
                         className={cn(
-                          'absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-0.5 overflow-hidden transition-opacity hover:opacity-80',
+                          'absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-0.5 overflow-hidden transition-opacity hover:opacity-80 cursor-pointer',
                           colors.bg, colors.border,
                           event.is_completed && 'opacity-50 line-through',
-                          isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+                          isDraggable && 'active:cursor-grabbing',
                           dragEvent?.id === event.id && 'opacity-40'
                         )}
                         style={style}
@@ -668,13 +877,14 @@ function WeekView({
 
 // ─── Month View ─────────────────────────────────────────────────────────────────
 function MonthView({
-  monthDays, currentMonth, events, getEventsForDay, onDayClick,
+  monthDays, currentMonth, events, getEventsForDay, onDayClick, onEventClick,
 }: {
   monthDays: Date[];
   currentMonth: Date;
   events: CalendarEvent[];
   getEventsForDay: (day: Date) => CalendarEvent[];
   onDayClick: (day: Date) => void;
+  onEventClick: (event: CalendarEvent) => void;
 }) {
   const weekDayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -713,7 +923,8 @@ function MonthView({
                   return (
                     <div
                       key={event.id}
-                      className={cn('text-[10px] px-1 py-0.5 rounded truncate font-medium border-l-2', colors.bg, colors.border, colors.text)}
+                      onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
+                      className={cn('text-[10px] px-1 py-0.5 rounded truncate font-medium border-l-2 cursor-pointer hover:opacity-80', colors.bg, colors.border, colors.text)}
                     >
                       {event.recurrence_rule && '🔄 '}{event.title}
                     </div>
