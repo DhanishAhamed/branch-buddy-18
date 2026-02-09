@@ -15,6 +15,7 @@ import {
   Search,
   Palette,
   Contact,
+  CalendarDays,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -40,6 +41,7 @@ const mainItems = [
   { title: 'Properties', url: '/properties', icon: Building2 },
   { title: 'Map Search', url: '/map', icon: Map },
   { title: 'Chat', url: '/chat', icon: MessageSquare },
+  { title: 'Calendar', url: '/calendar', icon: CalendarDays },
 ];
 
 const adminItems = [
