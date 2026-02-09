@@ -243,7 +243,7 @@ export default function PipelineV2() {
     propertyId?: string;
     siteVisitTime?: Date;
   }) => {
-    const { leadId, toStatus } = transitionDialog;
+    const { leadId, leadName, toStatus } = transitionDialog;
 
     // Update lead status
     const leadUpdate: any = { status: toStatus };
@@ -265,6 +265,30 @@ export default function PipelineV2() {
         customer_response: data.customerResponse || null,
         followup_at: data.followupAt?.toISOString() || null,
       }]);
+    }
+
+    // Auto-create calendar task for follow-up
+    if (data.followupAt && profile?.user_id) {
+      await supabase.from('tasks').insert({
+        title: `Follow-up: ${leadName}`,
+        description: data.callNotes || null,
+        scheduled_at: data.followupAt.toISOString(),
+        user_id: profile.user_id,
+        lead_id: leadId,
+        is_completed: false,
+      });
+    }
+
+    // Auto-create calendar task for site visit
+    if (data.siteVisitTime && profile?.user_id) {
+      await supabase.from('tasks').insert({
+        title: `Site Visit: ${leadName}`,
+        description: `Site visit scheduled for ${leadName}`,
+        scheduled_at: data.siteVisitTime.toISOString(),
+        user_id: profile.user_id,
+        lead_id: leadId,
+        is_completed: false,
+      });
     }
 
     // Link property if selected
