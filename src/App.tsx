@@ -23,6 +23,7 @@ import AdminSettings from "./pages/admin/Settings";
 import WorkspaceSettings from "./pages/admin/WorkspaceSettings";
 import AdminOwners from "./pages/admin/Owners";
 import CalendarPage from "./pages/CalendarPage";
+import NotificationPreferences from "./pages/NotificationPreferences";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,7 @@ function AppRoutes() {
       <Route path="/map" element={<ProtectedRoute><MapSearch /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+      <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
       
       {/* Admin Routes */}
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />

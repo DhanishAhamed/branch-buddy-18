@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Bell, UserPlus, Calendar, AlertCircle, Clock, MapPin, CheckCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, UserPlus, Calendar, AlertCircle, Clock, MapPin, CheckCheck, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ export function NotificationBell() {
   const { user, profile } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) return;
@@ -178,6 +180,8 @@ export function NotificationBell() {
         return MapPin;
       case 'task_reminder':
         return Calendar;
+      case 'lead_assigned':
+        return UserPlus;
       default:
         return Bell;
     }
@@ -195,6 +199,8 @@ export function NotificationBell() {
         return 'text-emerald-500 bg-emerald-500/10';
       case 'task_reminder':
         return 'text-blue-500 bg-blue-500/10';
+      case 'lead_assigned':
+        return 'text-purple-500 bg-purple-500/10';
       default:
         return 'text-muted-foreground bg-muted';
     }
@@ -272,6 +278,14 @@ export function NotificationBell() {
             })
           )}
         </ScrollArea>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => { setOpen(false); navigate('/notifications/preferences'); }}
+          className="flex items-center gap-2 p-3 cursor-pointer"
+        >
+          <Settings className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm">Notification Settings</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
