@@ -1,5 +1,5 @@
 import { NavLink } from '@/components/NavLink';
-import { Home, Users, MessageSquare, Map, MoreHorizontal } from 'lucide-react';
+import { Home, Users, MessageSquare, CalendarDays, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,7 @@ const navItems = [
   { title: 'Home', url: '/dashboard', icon: Home },
   { title: 'Leads', url: '/leads', icon: Users },
   { title: 'Chat', url: '/chat', icon: MessageSquare },
-  { title: 'Map', url: '/map', icon: Map },
+  { title: 'Calendar', url: '/calendar', icon: CalendarDays },
 ];
 
 export function BottomNav() {
