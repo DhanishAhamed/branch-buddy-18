@@ -1,136 +1,115 @@
 
 
-# Plan: Replace Ola Maps with Google Maps
+# Plan: Replace Google Maps with Ola Maps (using MapLibre GL JS directly)
 
-## Overview
-Replace the current Ola Maps integration with Google Maps while preserving all existing functionality including map display, markers, radius circles, place autocomplete, and click-to-select location.
+## Root Cause of Previous Failure
+The previous attempt used the `olamaps-web-sdk` npm package, which internally bundles a specific version of MapLibre GL. This caused the `Rt is not defined` error due to minification/bundler conflicts with Vite. 
 
----
-
-## Current Ola Maps Usage
-
-| Component | Functionality |
-|-----------|---------------|
-| `MapSearch.tsx` | Main map search page with property markers, radius circle, place autocomplete, filters |
-| `PropertyLocationPicker.tsx` | Location picker for adding/editing properties with draggable marker |
-| `OlaMapContainer.tsx` | Reusable map container component |
-| `use-ola-autocomplete.tsx` | Hook for place autocomplete |
-| `ola-maps-config.ts` | API key and config constants |
-| `ola-maps-style.ts` | Style fetching and sanitization |
+## New Approach
+Use **MapLibre GL JS** directly (stable, well-maintained) with Ola Maps as the tile provider. This avoids the problematic SDK entirely while giving us full control over initialization and the `transformRequest` pattern for API key injection.
 
 ---
 
-## Implementation Steps
+## What Changes
 
-### Step 1: Install Google Maps Dependencies
-Remove Ola Maps packages and add Google Maps React library:
-- Remove: `olamaps-web-sdk`, `maplibre-gl`
-- Add: `@react-google-maps/api` (official React wrapper for Google Maps)
+### Dependencies
+- **Remove**: `@react-google-maps/api`
+- **Add**: `maplibre-gl` (v4.7.1 -- compatible, stable)
 
-### Step 2: Create Google Maps Configuration
-Replace `src/lib/ola-maps-config.ts` with `src/lib/google-maps-config.ts`:
-- Store Google Maps API key
-- Define default center coordinates
-- Define default zoom level
+### Files to Create
 
-### Step 3: Create Google Maps Provider Component
-Create `src/components/maps/GoogleMapsProvider.tsx`:
-- Wrap the app with `LoadScript` or use `useJsApiLoader` hook
-- Load required libraries: `places`, `geometry`
-- Handle loading and error states
+1. **`src/lib/ola-maps-config.ts`** -- API key + default center/zoom constants
+   - API key: `rfnYaNtWg4FACoTMxP3dl8K1WPsB7F6spoqsytwU`
+   - Style URL: `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json`
+   - Default center: Calicut (11.2588, 75.7804)
 
-### Step 4: Create Google Map Container Component
-Replace `src/components/maps/OlaMapContainer.tsx` with `GoogleMapContainer.tsx`:
-- Use `GoogleMap` component from `@react-google-maps/api`
-- Support `center`, `zoom`, `onMapReady`, `onMapClick` props
-- Handle map resize and responsive behavior
+2. **`src/components/maps/OlaMapContainer.tsx`** -- Reusable map wrapper
+   - Uses `maplibregl.Map` directly
+   - `transformRequest` callback appends `api_key` to all Ola tile/sprite/glyph URLs
+   - Exposes `onMapReady` callback with the map instance
+   - Handles loading and error states
 
-### Step 5: Create Google Places Autocomplete Hook
-Replace `src/hooks/use-ola-autocomplete.tsx` with `use-google-autocomplete.tsx`:
-- Use Google Places Autocomplete Service
-- Return predictions with place details
-- Support location biasing
+### Files to Update
 
-### Step 6: Update MapSearch Page
-Update `src/pages/MapSearch.tsx`:
-- Replace Ola Maps initialization with Google Maps
-- Use `Marker` component for property markers and center marker
-- Use `Circle` component for radius visualization
-- Use `InfoWindow` for property popups
-- Replace autocomplete API calls with Google Places API
+3. **`src/pages/MapSearch.tsx`** -- Full rewrite of map logic
+   - Initialize map via MapLibre + Ola tiles
+   - Markers: use `maplibregl.Marker` with custom colored elements
+   - Radius circle: use GeoJSON source + fill/line layers (via `@turf/turf` circle, already installed)
+   - Popups: use `maplibregl.Popup`
+   - Autocomplete: call Ola Maps Places Autocomplete REST API (`https://api.olamaps.io/places/v1/autocomplete`)
+   - All existing filters (type, price, radius slider) preserved
+   - Property cards panel on the right preserved
 
-### Step 7: Update PropertyLocationPicker
-Update `src/components/properties/PropertyLocationPicker.tsx`:
-- Use Google Maps components
-- Implement draggable marker with `Marker` component
-- Use Google Places Autocomplete for search
+4. **`src/components/properties/PropertyLocationPicker.tsx`** -- Location picker
+   - MapLibre map with click-to-place marker
+   - Draggable marker via mousedown/mousemove handlers
+   - Ola Places Autocomplete for search
+   - Same UX: search bar, map, coordinates display, clear button
 
-### Step 8: Update Main Entry Point
-Update `src/main.tsx`:
-- Remove MapLibre CSS import
-- Add GoogleMapsProvider wrapper if using global provider approach
+5. **`src/main.tsx`** -- Add MapLibre CSS import
+   - `import 'maplibre-gl/dist/maplibre-gl.css'`
 
-### Step 9: Clean Up Old Files
-Delete Ola Maps specific files:
-- `src/lib/ola-maps-config.ts`
-- `src/lib/ola-maps-style.ts`
-- `src/components/maps/OlaMapContainer.tsx` (replaced)
-- `src/hooks/use-ola-autocomplete.tsx` (replaced)
+### Files to Delete
+- `src/lib/google-maps-config.ts`
+- `src/components/maps/GoogleMapsProvider.tsx`
+- `src/components/maps/GoogleMapContainer.tsx`
+- `src/hooks/use-google-autocomplete.tsx`
 
 ---
 
 ## Technical Details
 
-### New File Structure
-
+### Map Initialization Pattern (avoids the Rt error)
 ```text
-src/
-├── lib/
-│   └── google-maps-config.ts          # API key, defaults
-├── components/
-│   └── maps/
-│       └── GoogleMapContainer.tsx     # Reusable map component
-├── hooks/
-│   └── use-google-autocomplete.tsx    # Places autocomplete hook
-└── pages/
-    └── MapSearch.tsx                  # Updated to use Google Maps
+import maplibregl from 'maplibre-gl';
+
+const map = new maplibregl.Map({
+  container: containerRef,
+  style: STYLE_URL,
+  center: [lng, lat],
+  zoom: 12,
+  transformRequest: (url, resourceType) => {
+    // Append api_key to all Ola Maps requests
+    if (url.includes('api.olamaps.io')) {
+      const separator = url.includes('?') ? '&' : '?';
+      return { url: `${url}${separator}api_key=${API_KEY}` };
+    }
+    return { url };
+  },
+});
 ```
 
-### Key Component Mappings
+### Autocomplete via REST API (no SDK needed)
+```text
+GET https://api.olamaps.io/places/v1/autocomplete
+  ?input={query}
+  &api_key={API_KEY}
+  &location={lat},{lng}
+```
 
-| Ola Maps | Google Maps (@react-google-maps/api) |
-|----------|--------------------------------------|
-| `OlaMaps.init()` | `<GoogleMap>` component |
-| `olaMaps.addMarker()` | `<Marker>` component |
-| `olaMaps.addPopup()` | `<InfoWindow>` component |
-| `map.addSource() + map.addLayer()` | `<Circle>` component |
-| `map.flyTo()` | `map.panTo()` + `map.setZoom()` |
-| Autocomplete API fetch | `google.maps.places.AutocompleteService` |
+### Radius Circle via Turf.js
+```text
+import * as turf from '@turf/turf';
 
-### API Key Handling
-The Google Maps API key will be stored in `google-maps-config.ts`. Since this is a frontend map that requires a public API key, it's acceptable to include it in the codebase (similar to the current Ola Maps setup). For production, you should:
-- Restrict the API key to specific domains in Google Cloud Console
-- Enable only the required APIs (Maps JavaScript API, Places API)
+const circleGeoJSON = turf.circle([lng, lat], radiusKm, { units: 'kilometers' });
+map.getSource('radius').setData(circleGeoJSON);
+```
 
----
-
-## Risk Considerations
-
-1. **API Key Required**: You'll need a Google Cloud Platform account with billing enabled and the Maps JavaScript API + Places API enabled
-2. **Usage Costs**: Google Maps has a pricing model - first $200/month is free, then pay-per-use
-3. **Domain Restrictions**: Configure API key restrictions in Google Cloud Console for security
+### Marker Colors
+- Center marker: green (#22C55E)
+- Property markers: blue (#3B82F6), green when selected
+- Created via DOM elements styled with CSS
 
 ---
 
 ## Testing Checklist
 After implementation:
-- [ ] Map loads and displays correctly on MapSearch page
-- [ ] Place autocomplete returns suggestions when typing
-- [ ] Selecting a place centers the map and shows radius circle
-- [ ] Property markers display with correct colors
-- [ ] Clicking a marker shows property info popup
-- [ ] Radius slider updates the circle visualization
-- [ ] PropertyLocationPicker shows map and allows click/drag to set location
-- [ ] Dragging the marker updates the coordinates
-- [ ] Search in PropertyLocationPicker works
+- Map loads with Ola tiles (no Rt error, no 403)
+- Place autocomplete returns suggestions
+- Selecting a place centers map and shows radius circle
+- Property markers display with correct colors
+- Clicking a marker shows popup with title and price
+- Radius slider updates the circle
+- PropertyLocationPicker allows click/drag to set location
+- Search in PropertyLocationPicker works
 
