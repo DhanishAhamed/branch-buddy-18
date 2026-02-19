@@ -1,5 +1,5 @@
 import { NavLink } from '@/components/NavLink';
-import { Home, Users, MessageSquare, CalendarDays, MoreHorizontal } from 'lucide-react';
+import { Home, Users, MapPin, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,8 +12,7 @@ import { useNavigate } from 'react-router-dom';
 const navItems = [
   { title: 'Home', url: '/dashboard', icon: Home },
   { title: 'Leads', url: '/leads', icon: Users },
-  { title: 'Chat', url: '/chat', icon: MessageSquare },
-  { title: 'Calendar', url: '/calendar', icon: CalendarDays },
+  { title: 'Map', url: '/map-search', icon: MapPin },
 ];
 
 export function BottomNav() {
@@ -46,6 +45,21 @@ export function BottomNav() {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/pipeline')}>
               Pipeline
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/chat')}>
+              Chat
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/calendar')}>
+              Calendar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/portal/residential')}>
+              Residential Portal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/portal/commercial')}>
+              Commercial Portal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/portal/rentals')}>
+              Rentals Portal
             </DropdownMenuItem>
             {isAdmin && (
               <>

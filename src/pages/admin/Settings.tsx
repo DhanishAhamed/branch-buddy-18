@@ -205,36 +205,6 @@ export default function AdminSettings() {
               </div>
             </div>
 
-            {/* Branches */}
-            <div className="pt-4 border-t border-border">
-              <h3 className="flex items-center gap-2 font-semibold text-foreground mb-4">
-                <Building2 className="h-4 w-4" />
-                Branches / Cities
-              </h3>
-              <div className="flex gap-2 mb-4">
-                <Input 
-                  placeholder="Branch Name" 
-                  value={newBranch.name} 
-                  onChange={(e) => setNewBranch(p => ({ ...p, name: e.target.value }))} 
-                />
-                <Input 
-                  placeholder="City" 
-                  value={newBranch.city} 
-                  onChange={(e) => setNewBranch(p => ({ ...p, city: e.target.value }))} 
-                />
-                <Button onClick={addBranch}><Plus className="h-4 w-4" /></Button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {branches.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm font-medium">{b.name} - {b.city}</span>
-                    <Button variant="ghost" size="icon" onClick={() => deleteBranch(b.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
 
