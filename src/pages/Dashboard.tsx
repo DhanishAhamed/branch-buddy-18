@@ -1,16 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ScheduleWidget } from '@/components/dashboard/ScheduleWidget';
 import { SwipeableKPICards } from '@/components/dashboard/SwipeableKPICards';
 import { PerformanceChart } from '@/components/dashboard/PerformanceChart';
 import { RecentLeads } from '@/components/dashboard/RecentLeads';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { Sparkles, Building2 } from 'lucide-react';
+import { Sparkles, Building2, ArrowLeftRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { WorkspaceSwitcher } from '@/components/layout/WorkspaceSwitcher';
 
 export default function Dashboard() {
   const { profile, user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
+  const isMobile = useIsMobile();
   const [newInquiries, setNewInquiries] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const firstName = profile?.full_name?.split(' ')[0] || 'User';
@@ -39,6 +44,13 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6">
+      {/* Mobile Workspace Switcher */}
+      {isMobile && (
+        <div className="flex items-center justify-between">
+          <WorkspaceSwitcher />
+        </div>
+      )}
+
       {/* Dashboard Header with New Lead Button */}
       <DashboardHeader onLeadAdded={handleLeadAdded} />
 

@@ -9,6 +9,7 @@ import {
   DragStartEvent,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -62,7 +63,8 @@ function KanbanProvider<TColumn extends KanbanColumn, TItem extends { id: string
   const [activeItem, setActiveItem] = useState<TItem | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {

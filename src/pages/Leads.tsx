@@ -54,7 +54,6 @@ export default function Leads() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
-  const [filterCity, setFilterCity] = useState<string>('all');
   const [filterStaff, setFilterStaff] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -80,9 +79,6 @@ export default function Leads() {
     if (profilesRes.data) setStaffProfiles(profilesRes.data);
   };
 
-  const getCityForBranch = (branchId: string) => {
-    return branches.find(b => b.id === branchId)?.city || 'Unknown';
-  };
 
   const getStaffName = (userId: string | null) => {
     if (!userId) return null;
@@ -95,11 +91,6 @@ export default function Leads() {
   // Non-admin users can only see leads from their branch
   if (!isAdmin && profile?.branch_id) {
     filteredLeads = filteredLeads.filter(lead => lead.branch_id === profile.branch_id);
-  }
-
-  // Apply city filter (admin only)
-  if (isAdmin && filterCity !== 'all') {
-    filteredLeads = filteredLeads.filter(lead => lead.branch_id === filterCity);
   }
 
   // Apply staff filter (admin only)
@@ -160,18 +151,6 @@ export default function Leads() {
         {/* Admin Filters */}
         {isAdmin && showFilters && (
           <div className="flex gap-3 p-3 bg-muted/50 rounded-lg">
-            <Select value={filterCity} onValueChange={setFilterCity}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filter by City" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Cities</SelectItem>
-                {branches.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.city}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Select value={filterStaff} onValueChange={setFilterStaff}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Filter by Staff" />
@@ -184,7 +163,7 @@ export default function Leads() {
               </SelectContent>
             </Select>
 
-            <Button variant="ghost" size="sm" onClick={() => { setFilterCity('all'); setFilterStaff('all'); }}>
+            <Button variant="ghost" size="sm" onClick={() => { setFilterStaff('all'); }}>
               Clear
             </Button>
           </div>
@@ -206,7 +185,6 @@ export default function Leads() {
         ) : (
           filteredLeads.map((lead) => {
             const status = statusConfig[lead.status] || statusConfig.new;
-            const city = getCityForBranch(lead.branch_id);
             const assignedTo = getStaffName(lead.assigned_to);
             
             return (
@@ -259,11 +237,6 @@ export default function Leads() {
                           {lead.source && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                               via {lead.source}
-                            </Badge>
-                          )}
-                          {isAdmin && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {city}
                             </Badge>
                           )}
                           {assignedTo && (
