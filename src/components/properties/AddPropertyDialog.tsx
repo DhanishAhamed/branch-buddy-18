@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { PropertyLocationPicker } from './PropertyLocationPicker';
-import { Upload, X, Image as ImageIcon, Video, User, Phone } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Video, User, Phone, Search, AlertTriangle } from 'lucide-react';
+
+interface OwnerSuggestion {
+  name: string;
+  phone: string;
+  propertyCount: number;
+}
 
 interface PropertyType {
   id: string;
@@ -42,6 +48,10 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
   // Owner details
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerSuggestions, setOwnerSuggestions] = useState<OwnerSuggestion[]>([]);
+  const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
+  const [duplicateOwnerWarning, setDuplicateOwnerWarning] = useState<string | null>(null);
+  const ownerDropdownRef = useRef<HTMLDivElement>(null);
   const { profile, user } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
@@ -54,6 +64,93 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
     const { data } = await supabase.from('property_types').select('*');
     if (data) setPropertyTypes(data);
   };
+
+  const searchOwners = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setOwnerSuggestions([]);
+      setShowOwnerDropdown(false);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('properties')
+      .select('owner_details')
+      .not('owner_details', 'is', null);
+
+    if (data) {
+      const ownersMap = new Map<string, OwnerSuggestion>();
+      data.forEach((p) => {
+        const details = p.owner_details as { name?: string; phone?: string } | null;
+        if (!details?.phone) return;
+        const key = details.phone;
+        const existing = ownersMap.get(key);
+        if (existing) {
+          existing.propertyCount++;
+        } else {
+          ownersMap.set(key, {
+            name: details.name || '',
+            phone: details.phone,
+            propertyCount: 1,
+          });
+        }
+      });
+
+      const lowerQuery = query.toLowerCase();
+      const filtered = Array.from(ownersMap.values()).filter(
+        (o) =>
+          o.name.toLowerCase().includes(lowerQuery) ||
+          o.phone.includes(query)
+      );
+      setOwnerSuggestions(filtered.slice(0, 5));
+      setShowOwnerDropdown(filtered.length > 0);
+    }
+  }, []);
+
+  const checkDuplicatePhone = useCallback(async (phone: string) => {
+    if (phone.length < 5) {
+      setDuplicateOwnerWarning(null);
+      return;
+    }
+    const { data } = await supabase
+      .from('properties')
+      .select('title, owner_details')
+      .not('owner_details', 'is', null);
+
+    if (data) {
+      const matches = data.filter((p) => {
+        const details = p.owner_details as { phone?: string } | null;
+        return details?.phone === phone;
+      });
+      if (matches.length > 0) {
+        setDuplicateOwnerWarning(
+          `This phone number already exists for ${matches.length} propert${matches.length > 1 ? 'ies' : 'y'}`
+        );
+      } else {
+        setDuplicateOwnerWarning(null);
+      }
+    }
+  }, []);
+
+  const handleOwnerNameChange = (value: string) => {
+    setOwnerName(value);
+    searchOwners(value);
+  };
+
+  const handleOwnerPhoneChange = (value: string) => {
+    setOwnerPhone(value);
+    searchOwners(value);
+    checkDuplicatePhone(value);
+  };
+
+  const selectOwner = (owner: OwnerSuggestion) => {
+    setOwnerName(owner.name);
+    setOwnerPhone(owner.phone);
+    setShowOwnerDropdown(false);
+    setDuplicateOwnerWarning(
+      `This owner already has ${owner.propertyCount} propert${owner.propertyCount > 1 ? 'ies' : 'y'}`
+    );
+  };
+
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -210,6 +307,9 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
     setImagePreviews([]);
     setOwnerName('');
     setOwnerPhone('');
+    setOwnerSuggestions([]);
+    setShowOwnerDropdown(false);
+    setDuplicateOwnerWarning(null);
   };
 
   return (
@@ -382,20 +482,46 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
           </div>
 
           {/* Owner Details Section */}
-          <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
+          <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30" ref={ownerDropdownRef}>
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <User className="h-4 w-4 text-primary" />
               Owner Details
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
                 <Label htmlFor="ownerName">Owner Name</Label>
-                <Input
-                  id="ownerName"
-                  value={ownerName}
-                  onChange={(e) => setOwnerName(e.target.value)}
-                  placeholder="Enter owner name"
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="ownerName"
+                    value={ownerName}
+                    onChange={(e) => handleOwnerNameChange(e.target.value)}
+                    onFocus={() => ownerSuggestions.length > 0 && setShowOwnerDropdown(true)}
+                    placeholder="Search or enter name"
+                    className="pl-9"
+                    autoComplete="off"
+                  />
+                </div>
+                {showOwnerDropdown && ownerSuggestions.length > 0 && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto">
+                    {ownerSuggestions.map((owner, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between gap-2 text-sm"
+                        onClick={() => selectOwner(owner)}
+                      >
+                        <div>
+                          <p className="font-medium text-foreground">{owner.name || 'Unknown'}</p>
+                          <p className="text-xs text-muted-foreground">{owner.phone}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {owner.propertyCount} prop.
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ownerPhone">Owner Phone</Label>
@@ -404,13 +530,20 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
                   <Input
                     id="ownerPhone"
                     value={ownerPhone}
-                    onChange={(e) => setOwnerPhone(e.target.value)}
+                    onChange={(e) => handleOwnerPhoneChange(e.target.value)}
                     placeholder="Enter phone number"
                     className="pl-9"
+                    autoComplete="off"
                   />
                 </div>
               </div>
             </div>
+            {duplicateOwnerWarning && (
+              <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 p-2 rounded-md">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {duplicateOwnerWarning}
+              </div>
+            )}
           </div>
 
           {/* Location Picker */}
