@@ -54,6 +54,7 @@ function AppRoutes() {
       } />
       
       {/* Public Portals */}
+      <Route path="/portal/rentals" element={<Navigate to="/portal/residential" replace />} />
       <Route path="/portal/:type" element={<Portal />} />
 
       {/* Protected Routes */}

@@ -45,6 +45,8 @@ export default function Properties() {
   const [showSold, setShowSold] = useState(false);
   const [portalFilter, setPortalFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
+  const [propertyTypes, setPropertyTypes] = useState<{ id: string; name: string }[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const { profile, isAdmin } = useAuth();
   const { activeWorkspace } = useWorkspace();
@@ -53,8 +55,14 @@ export default function Properties() {
   useEffect(() => {
     if (profile?.branch_id || isAdmin) {
       fetchProperties();
+      fetchPropertyTypes();
     }
   }, [profile, activeWorkspace?.id, isAdmin]);
+
+  const fetchPropertyTypes = async () => {
+    const { data } = await supabase.from('property_types').select('id, name');
+    if (data) setPropertyTypes(data);
+  };
 
   const fetchProperties = async () => {
     const { data, error } = await supabase
@@ -95,6 +103,9 @@ export default function Properties() {
       // Portal filter
       if (portalFilter !== 'all' && prop.portal_type !== portalFilter) return false;
 
+      // Property type filter
+      if (propertyTypeFilter !== 'all' && prop.property_type_id !== propertyTypeFilter) return false;
+
       // Status filter
       if (statusFilter !== 'all' && prop.status !== statusFilter) return false;
 
@@ -117,7 +128,7 @@ export default function Properties() {
     if (sortBy === 'oldest') result.reverse();
 
     return result;
-  }, [properties, searchQuery, showSold, portalFilter, statusFilter, sortBy]);
+  }, [properties, searchQuery, showSold, portalFilter, propertyTypeFilter, statusFilter, sortBy]);
 
   const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
     available: { bg: 'bg-primary/10', text: 'text-primary', label: 'Available' },
@@ -130,7 +141,6 @@ export default function Properties() {
   const portalColors: Record<string, string> = {
     commercial: 'border-l-blue-500',
     residential: 'border-l-green-500',
-    rentals: 'border-l-orange-500',
   };
 
   const formatPrice = (price: number) => {
@@ -177,7 +187,18 @@ export default function Properties() {
             <SelectItem value="all">All Portals</SelectItem>
             <SelectItem value="residential">Residential</SelectItem>
             <SelectItem value="commercial">Commercial</SelectItem>
-            <SelectItem value="rentals">Rentals</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={propertyTypeFilter} onValueChange={setPropertyTypeFilter}>
+          <SelectTrigger className="w-[160px] bg-card">
+            <SelectValue placeholder="Property Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {propertyTypes.map(pt => (
+              <SelectItem key={pt.id} value={pt.id}>{pt.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -358,7 +379,6 @@ export default function Properties() {
                     {property.price ? (
                       <span className="text-xl font-bold text-primary">
                         {formatPrice(property.price)}
-                        {property.portal_type === 'rentals' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">Price on request</span>

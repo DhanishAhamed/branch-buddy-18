@@ -83,15 +83,9 @@ const portalConfig = {
     gradient: 'from-green-600 to-green-800',
     accent: 'text-green-500',
   },
-  rentals: {
-    title: 'Rental Properties',
-    subtitle: 'Find comfortable living spaces',
-    gradient: 'from-orange-500 to-orange-700',
-    accent: 'text-orange-500',
-  },
 };
 
-// Placeholder images for properties without images (Unsplash real estate photos)
+// Placeholder images for properties without images
 const placeholderImages = {
   commercial: [
     'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop',
@@ -106,13 +100,6 @@ const placeholderImages = {
     'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop',
     'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&h=300&fit=crop',
     'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop',
-  ],
-  rentals: [
-    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=400&h=300&fit=crop',
   ],
 };
 
@@ -291,11 +278,9 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
 }
 
 export default function Portal() {
-  const { type } = useParams<{ type: 'commercial' | 'residential' | 'rentals' }>();
+  const { type } = useParams<{ type: 'commercial' | 'residential' }>();
   const config = portalConfig[type || 'commercial'];
   const [properties, setProperties] = useState<Property[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [selectedPropertyType, setSelectedPropertyType] = useState<string>('all');
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -308,32 +293,21 @@ export default function Portal() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchBranches();
     fetchPropertyTypes();
     fetchProperties();
-  }, [type, selectedBranch, selectedPropertyType]);
-
-  const fetchBranches = async () => {
-    const { data } = await supabase.from('branches').select('*');
-    if (data) setBranches(data);
-  };
+  }, [type, selectedPropertyType]);
 
   const fetchPropertyTypes = async () => {
-    const { data } = await supabase.from('property_types').select('*').eq('portal_type', type);
+    const { data } = await supabase.from('property_types').select('*').in('portal_type', [type, 'rentals']);
     if (data) setPropertyTypes(data);
   };
 
   const fetchProperties = async () => {
-    // Use properties_public view for unauthenticated access (excludes owner_details)
     let query = supabase
       .from('properties_public')
       .select('*, property_type:property_types(name), branch:branches(name, city)')
-      .eq('portal_type', type)
+      .in('portal_type', [type, 'rentals'])
       .in('status', ['available', 'sold', 'rented']);
-
-    if (selectedBranch !== 'all') {
-      query = query.eq('branch_id', selectedBranch);
-    }
 
     if (selectedPropertyType !== 'all') {
       query = query.eq('property_type_id', selectedPropertyType);
@@ -437,17 +411,6 @@ export default function Portal() {
                   className="pl-11 h-11 bg-white text-foreground border-0"
                 />
               </div>
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="w-full sm:w-44 h-11 bg-white text-foreground border-0">
-                  <SelectValue placeholder="Select City" />
-                </SelectTrigger>
-                <SelectContent className="bg-background">
-                  <SelectItem value="all">All Cities</SelectItem>
-                  {branches.map(branch => (
-                    <SelectItem key={branch.id} value={branch.id}>{branch.city}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={selectedPropertyType} onValueChange={setSelectedPropertyType}>
                 <SelectTrigger className="w-full sm:w-44 h-11 bg-white text-foreground border-0">
                   <Filter className="h-4 w-4 mr-2" />
