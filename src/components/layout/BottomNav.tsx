@@ -1,5 +1,5 @@
 import { NavLink } from '@/components/NavLink';
-import { Home, Users, MapPin, MoreHorizontal } from 'lucide-react';
+import { Home, Users, MapPin, MoreHorizontal, Kanban } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,8 @@ import { useNavigate } from 'react-router-dom';
 const navItems = [
   { title: 'Home', url: '/dashboard', icon: Home },
   { title: 'Leads', url: '/leads', icon: Users },
-  { title: 'Map', url: '/map-search', icon: MapPin },
+  { title: 'Pipeline', url: '/pipeline', icon: Kanban },
+  { title: 'Map', url: '/map', icon: MapPin },
 ];
 
 export function BottomNav() {
@@ -43,9 +44,6 @@ export function BottomNav() {
             <DropdownMenuItem onClick={() => navigate('/properties')}>
               Properties
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/pipeline')}>
-              Pipeline
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/chat')}>
               Chat
             </DropdownMenuItem>
@@ -57,9 +55,6 @@ export function BottomNav() {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/portal/commercial')}>
               Commercial Portal
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/portal/rentals')}>
-              Rentals Portal
             </DropdownMenuItem>
             {isAdmin && (
               <>

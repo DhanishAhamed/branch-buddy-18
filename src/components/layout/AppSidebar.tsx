@@ -56,7 +56,6 @@ const adminItems = [
 const portalItems = [
   { title: 'Commercial', url: '/portal/commercial', type: 'commercial' },
   { title: 'Residential', url: '/portal/residential', type: 'residential' },
-  { title: 'Rentals', url: '/portal/rentals', type: 'rentals' },
 ];
 
 const allSearchItems = [
