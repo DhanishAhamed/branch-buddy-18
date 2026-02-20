@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Sheet,
   SheetContent,
@@ -7,9 +8,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Phone, Mail, Calendar, Building2, Home } from 'lucide-react';
+import { Phone, Mail, Calendar, Building2, Home, BookUser } from 'lucide-react';
+import { SaveToContactBookDialog } from '@/components/contacts/SaveToContactBookDialog';
 
 interface CustomerDetail {
   id: string;
@@ -46,6 +49,8 @@ export function CustomerDetailModal({ open, onOpenChange, customerId }: Customer
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [properties, setProperties] = useState<CustomerProperty[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saveToContactOpen, setSaveToContactOpen] = useState(false);
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     if (open && customerId) {
@@ -77,6 +82,7 @@ export function CustomerDetailModal({ open, onOpenChange, customerId }: Customer
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         {loading || !customer ? (
@@ -99,6 +105,17 @@ export function CustomerDetailModal({ open, onOpenChange, customerId }: Customer
                   </Badge>
                 </div>
               </div>
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setSaveToContactOpen(true)}
+                >
+                  <BookUser className="h-4 w-4 mr-1.5" />
+                  Save to Contact Book
+                </Button>
+              )}
             </SheetHeader>
 
             <Separator />
@@ -198,5 +215,18 @@ export function CustomerDetailModal({ open, onOpenChange, customerId }: Customer
         )}
       </SheetContent>
     </Sheet>
+
+    {customer && (
+      <SaveToContactBookDialog
+        open={saveToContactOpen}
+        onOpenChange={setSaveToContactOpen}
+        contactName={customer.name}
+        contactPhone={customer.phone}
+        contactEmail={customer.email}
+        sourceType="customer"
+        sourceId={customer.id}
+      />
+    )}
+    </>
   );
 }

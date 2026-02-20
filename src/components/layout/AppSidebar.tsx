@@ -18,6 +18,7 @@ import {
   Contact,
   CalendarDays,
   UserCheck,
+  BookUser,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -50,6 +51,7 @@ const mainItems = [
 ];
 
 const adminItems = [
+  { title: 'Contact Book', url: '/contact-book', icon: BookUser },
   { title: 'User Management', url: '/admin/users', icon: Users },
   { title: 'Workspace Branding', url: '/admin/workspaces', icon: Palette },
   { title: 'Settings', url: '/admin/settings', icon: Settings },

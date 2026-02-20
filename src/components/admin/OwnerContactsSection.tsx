@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Phone, Home, User, Search, MapPin, Building2 } from 'lucide-react';
+import { Phone, Home, User, Search, MapPin, Building2, BookUser } from 'lucide-react';
+import { SaveToContactBookDialog } from '@/components/contacts/SaveToContactBookDialog';
 
 interface OwnerDetails {
   name?: string;
@@ -32,6 +33,7 @@ export function OwnerContactsSection() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOwner, setSelectedOwner] = useState<GroupedOwner | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [saveToContactOpen, setSaveToContactOpen] = useState(false);
 
   useEffect(() => {
     fetchOwners();
@@ -211,16 +213,37 @@ export function OwnerContactsSection() {
                   ))}
                 </div>
 
-                <Button
-                  className="w-full"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Close
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setSaveToContactOpen(true)}
+                  >
+                    <BookUser className="h-4 w-4 mr-1.5" />
+                    Save to Contacts
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
+
+        {selectedOwner && (
+          <SaveToContactBookDialog
+            open={saveToContactOpen}
+            onOpenChange={setSaveToContactOpen}
+            contactName={selectedOwner.name}
+            contactPhone={selectedOwner.phone}
+            sourceType="owner"
+            sourceId={selectedOwner.phone}
+          />
+        )}
       </CardContent>
     </Card>
   );

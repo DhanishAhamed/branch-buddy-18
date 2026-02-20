@@ -61,6 +61,9 @@ export function BottomNav() {
             </DropdownMenuItem>
             {isAdmin && (
               <>
+                <DropdownMenuItem onClick={() => navigate('/contact-book')}>
+                  Contact Book
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/admin/users')}>
                   User Management
                 </DropdownMenuItem>

@@ -23,8 +23,9 @@ import {
   User, Phone, Mail, Calendar, Building2,
   MessageSquare, Clock, MapPin, Eye, EyeOff,
   Copy, PhoneCall, Plus, Send, History, FileText,
-  Home, CheckCircle2, Circle, ArrowRight, UserPlus
+  Home, CheckCircle2, Circle, ArrowRight, UserPlus, BookUser
 } from 'lucide-react';
+import { SaveToContactBookDialog } from '@/components/contacts/SaveToContactBookDialog';
 import { format, formatDistanceToNow } from 'date-fns';
 
 interface Lead {
@@ -133,6 +134,7 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
   const [newNote, setNewNote] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
+  const [saveToContactOpen, setSaveToContactOpen] = useState(false);
   const { profile, isAdmin } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { getLeadTemperature, showTemperatureIndicator } = useLeadTemperature();
@@ -288,6 +290,7 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
   const currentStageIndex = getCurrentStageIndex();
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
         <SheetHeader className="p-6 pb-4 border-b border-border">
@@ -357,6 +360,16 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
               >
                 <Copy className="h-4 w-4 mr-1.5" />
                 Copy Contact
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSaveToContactOpen(true)}
+              >
+                <BookUser className="h-4 w-4 mr-1.5" />
+                Save to Contacts
               </Button>
             )}
           </div>
@@ -789,5 +802,18 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onLeadUpdated }: L
         </Tabs>
       </SheetContent>
     </Sheet>
+
+    {lead && (
+      <SaveToContactBookDialog
+        open={saveToContactOpen}
+        onOpenChange={setSaveToContactOpen}
+        contactName={lead.name}
+        contactPhone={lead.phone}
+        contactEmail={lead.email}
+        sourceType="lead"
+        sourceId={lead.id}
+      />
+    )}
+    </>
   );
 }

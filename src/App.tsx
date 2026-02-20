@@ -25,6 +25,7 @@ import AdminOwners from "./pages/admin/Owners";
 import CalendarPage from "./pages/CalendarPage";
 import NotificationPreferences from "./pages/NotificationPreferences";
 import Customers from "./pages/Customers";
+import ContactBook from "./pages/ContactBook";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ function AppRoutes() {
       <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
       <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+      <Route path="/contact-book" element={<ProtectedRoute><ContactBook /></ProtectedRoute>} />
       
       {/* Admin Routes */}
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />

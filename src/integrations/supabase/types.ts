@@ -86,6 +86,127 @@ export type Database = {
           },
         ]
       }
+      contact_entries: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string
+          email: string | null
+          folder_id: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          source_id: string | null
+          source_type: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by: string
+          email?: string | null
+          folder_id: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          folder_id?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_entries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_entries_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "contact_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_entries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_folders: {
+        Row: {
+          branch_id: string
+          color: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          branch_id: string
+          color?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          branch_id?: string
+          color?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_folders_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_folders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_properties: {
         Row: {
           created_at: string
