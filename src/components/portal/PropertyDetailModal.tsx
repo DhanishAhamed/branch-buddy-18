@@ -46,6 +46,7 @@ interface Property {
   property_type: { name: string } | null;
   branch: { name: string; city: string } | null;
   location?: { lat: number; lng: number } | null;
+  youtube_url?: string | null;
 }
 
 // Famous places database by city (Kerala/India focused)
@@ -247,9 +248,18 @@ export function PropertyDetailModal({
     ? property.images 
     : getPlaceholderImages(property.id, portalType);
   const isSold = property.status === 'sold' || property.status === 'rented';
+  const hasYouTube = !!property.youtube_url;
+  const totalSlides = images.length + (hasYouTube ? 1 : 0);
 
-  const nextImage = () => setCurrentImage((c) => (c + 1) % images.length);
-  const prevImage = () => setCurrentImage((c) => (c - 1 + images.length) % images.length);
+  const nextImage = () => setCurrentImage((c) => (c + 1) % totalSlides);
+  const prevImage = () => setCurrentImage((c) => (c - 1 + totalSlides) % totalSlides);
+  const isYouTubeSlide = hasYouTube && currentImage === images.length;
+
+  // Extract YouTube embed URL
+  const getYouTubeEmbedUrl = (url: string) => {
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+  };
 
   const formatPrice = (price: number) => {
     if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
@@ -282,14 +292,25 @@ export function PropertyDetailModal({
             )}
 
             <div className="relative h-64 lg:h-full">
-              <img 
-                src={images[currentImage]} 
-                alt={property.title}
-                className={`w-full h-full object-cover ${isSold ? 'opacity-70' : ''}`}
-              />
+              {isYouTubeSlide && property.youtube_url ? (
+                <iframe
+                  src={getYouTubeEmbedUrl(property.youtube_url) || ''}
+                  title="Property Video"
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <img 
+                  src={images[currentImage]} 
+                  alt={property.title}
+                  className={`w-full h-full object-cover ${isSold ? 'opacity-70' : ''}`}
+                />
+              )}
               
               {/* Image Navigation */}
-              {images.length > 1 && (
+              {totalSlides > 1 && (
                 <>
                   <button 
                     onClick={prevImage}
@@ -308,9 +329,9 @@ export function PropertyDetailModal({
             </div>
 
             {/* Thumbnail Strip */}
-            {images.length > 1 && (
+            {totalSlides > 1 && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background/80 backdrop-blur-sm rounded-full px-3 py-2">
-                {images.map((_, i) => (
+                {Array.from({ length: totalSlides }).map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrentImage(i)}

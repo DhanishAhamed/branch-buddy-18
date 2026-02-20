@@ -46,6 +46,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
   const [videos, setVideos] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   // Owner details
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [ownerSuggestions, setOwnerSuggestions] = useState<OwnerSuggestion[]>([]);
@@ -259,6 +260,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
       location: locationPoint,
       workspace_id: activeWorkspace?.id || null,
       owner_details: ownerDetails,
+      youtube_url: youtubeUrl || null,
     }]).select().single();
 
     if (error) {
@@ -305,6 +307,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
     setImages([]);
     setVideos([]);
     setImagePreviews([]);
+    setYoutubeUrl('');
     setOwnerName('');
     setOwnerPhone('');
     setOwnerSuggestions([]);
@@ -440,6 +443,17 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
                 ))}
               </div>
             )}
+          </div>
+
+          {/* YouTube Video Link */}
+          <div className="space-y-2">
+            <Label htmlFor="youtube-url">YouTube Video Link</Label>
+            <Input
+              id="youtube-url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
           </div>
 
           {/* Video Upload */}

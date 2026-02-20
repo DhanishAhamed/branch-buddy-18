@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save, GitBranch, Layers, Thermometer } from 'lucide-react';
+import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save, GitBranch, Layers, Thermometer, Users } from 'lucide-react';
 import { PipelineSettings } from '@/components/settings/PipelineSettings';
 
 interface Branch { id: string; name: string; city: string; }
@@ -31,6 +31,7 @@ export default function AdminSettings() {
   const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([]);
   const [whatsappConfig, setWhatsappConfig] = useState<WhatsAppConfig | null>(null);
   const [showTemperatureIndicator, setShowTemperatureIndicator] = useState(true);
+  const [staffProfiles, setStaffProfiles] = useState<{ user_id: string; full_name: string | null; staff_type: string | null }[]>([]);
   const [newBranch, setNewBranch] = useState({ name: '', city: '' });
   const [newType, setNewType] = useState<{ name: string; portal_type: 'commercial' | 'residential' | 'rentals' }>({ name: '', portal_type: 'residential' });
   const [newTemplate, setNewTemplate] = useState({ name: '', template: '', branch_id: '' });
@@ -42,7 +43,7 @@ export default function AdminSettings() {
   }, [profile?.branch_id]);
 
   const fetchData = async () => {
-    const [b, t, templates, config, leadSettings] = await Promise.all([
+    const [b, t, templates, config, leadSettings, staff] = await Promise.all([
       supabase.from('branches').select('*'),
       supabase.from('property_types').select('*'),
       supabase.from('whatsapp_templates').select('*'),
@@ -54,6 +55,12 @@ export default function AdminSettings() {
             .order('branch_id', { ascending: false, nullsFirst: false })
             .limit(1)
             .maybeSingle()
+        : Promise.resolve({ data: null }),
+      profile?.branch_id
+        ? supabase.from('profiles')
+            .select('user_id, full_name, staff_type')
+            .eq('branch_id', profile.branch_id)
+            .eq('is_approved', true)
         : Promise.resolve({ data: null }),
     ]);
     if (b.data) setBranches(b.data);
@@ -70,6 +77,9 @@ export default function AdminSettings() {
     }
     if (leadSettings.data) {
       setShowTemperatureIndicator(leadSettings.data.show_temperature_indicator);
+    }
+    if (staff.data) {
+      setStaffProfiles(staff.data);
     }
   };
 
@@ -163,6 +173,15 @@ export default function AdminSettings() {
     toast({ title: enabled ? 'Lead temperature indicator enabled' : 'Lead temperature indicator disabled' });
   };
 
+  const updateStaffType = async (userId: string, staffType: string) => {
+    await supabase
+      .from('profiles')
+      .update({ staff_type: staffType })
+      .eq('user_id', userId);
+    setStaffProfiles(prev => prev.map(s => s.user_id === userId ? { ...s, staff_type: staffType } : s));
+    toast({ title: `Staff type updated to ${staffType}` });
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -205,6 +224,39 @@ export default function AdminSettings() {
               </div>
             </div>
 
+          </CardContent>
+        </Card>
+
+        {/* Staff Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Staff Roles
+            </CardTitle>
+            <CardDescription>Assign team members as Sales or Operational staff</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {staffProfiles.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No approved staff members found.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {staffProfiles.map((s) => (
+                  <div key={s.user_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <span className="text-sm font-medium">{s.full_name || 'Unnamed'}</span>
+                    <Select value={s.staff_type || 'sales'} onValueChange={(val) => updateStaffType(s.user_id, val)}>
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sales">Sales</SelectItem>
+                        <SelectItem value="operational">Operational</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

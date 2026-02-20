@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Clock, Phone, MessageSquare, Building2 } from 'lucide-react';
+import { Calendar, Clock, Phone, MessageSquare, Building2, UserCheck } from 'lucide-react';
 import { addDays, addWeeks, addMonths, format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Property {
   id: string;
@@ -27,6 +29,7 @@ interface StatusTransitionDialogProps {
     followupAt?: Date;
     propertyId?: string;
     siteVisitTime?: Date;
+    assignedStaffId?: string;
   }) => void;
 }
 
@@ -46,11 +49,28 @@ export function StatusTransitionDialog({
   const [selectedProperty, setSelectedProperty] = useState('');
   const [siteVisitDate, setSiteVisitDate] = useState('');
   const [siteVisitTime, setSiteVisitTime] = useState('');
+  const [selectedStaff, setSelectedStaff] = useState('');
+  const [opsStaff, setOpsStaff] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const { profile } = useAuth();
 
   const showFollowup = toStatus === 'contacted' || toStatus === 'qualified' || toStatus === 'need_followup';
   const showProperty = toStatus === 'qualified' || toStatus === 'closed_won';
   const showSiteVisit = toStatus === 'site_visit_scheduled';
   const showCustomerResponse = toStatus === 'contacted';
+
+  useEffect(() => {
+    if (open && showSiteVisit && profile?.branch_id) {
+      supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .eq('branch_id', profile.branch_id)
+        .eq('staff_type', 'operational')
+        .eq('is_approved', true)
+        .then(({ data }) => {
+          if (data) setOpsStaff(data);
+        });
+    }
+  }, [open, showSiteVisit, profile?.branch_id]);
 
   const setPresetFollowup = (preset: 'tomorrow' | '2days' | 'week' | 'month') => {
     let date: Date;
@@ -93,6 +113,7 @@ export function StatusTransitionDialog({
       followupAt,
       propertyId: showProperty ? selectedProperty : undefined,
       siteVisitTime: siteVisitDateTime,
+      assignedStaffId: showSiteVisit && selectedStaff ? selectedStaff : undefined,
     });
 
     // Reset form
@@ -103,6 +124,7 @@ export function StatusTransitionDialog({
     setSelectedProperty('');
     setSiteVisitDate('');
     setSiteVisitTime('');
+    setSelectedStaff('');
   };
 
   const getTitle = () => {
@@ -204,6 +226,27 @@ export function StatusTransitionDialog({
                   className="w-28"
                 />
               </div>
+            </div>
+          )}
+
+          {showSiteVisit && opsStaff.length > 0 && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4" />
+                Assign Operational Staff
+              </Label>
+              <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select staff member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {opsStaff.map((s) => (
+                    <SelectItem key={s.user_id} value={s.user_id}>
+                      {s.full_name || 'Unnamed'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
