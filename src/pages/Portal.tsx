@@ -323,27 +323,23 @@ export default function Portal() {
   }, [type, selectedPropertyType, currentWorkspace]);
 
   const fetchWorkspaces = async () => {
+    // Use workspace_contacts view (public, no auth required)
     const { data } = await supabase
       .from('workspace_contacts' as any)
-      .select('id, whatsapp_number');
-    
-    // Also fetch full workspace info for slug matching
-    const { data: wsData } = await supabase
-      .from('workspaces')
       .select('id, name, slug, logo_url, whatsapp_number');
     
-    if (wsData) {
-      setAllWorkspaces(wsData as WorkspaceInfo[]);
-      if (workspaceSlug) {
-        const matched = wsData.find((w: any) => w.slug === workspaceSlug);
-        if (matched) setCurrentWorkspace(matched as WorkspaceInfo);
-      }
-    }
-
     if (data) {
+      const wsData = (data as unknown) as WorkspaceInfo[];
+      setAllWorkspaces(wsData);
+      
       const map: Record<string, string | null> = {};
-      (data as any[]).forEach((ws) => { map[ws.id] = ws.whatsapp_number; });
+      wsData.forEach((ws) => { map[ws.id] = ws.whatsapp_number; });
       setWorkspaceWhatsApp(map);
+
+      if (workspaceSlug) {
+        const matched = wsData.find((w) => w.slug === workspaceSlug);
+        if (matched) setCurrentWorkspace(matched);
+      }
     }
   };
 
