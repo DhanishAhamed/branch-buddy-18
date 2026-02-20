@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,9 +21,10 @@ interface PropertyType {
 }
 
 // Share URL generator
-const getPropertyShareUrl = (propertyId: string, portalType: string) => {
+const getPropertyShareUrl = (propertyId: string, portalType: string, workspaceSlug?: string) => {
   const baseUrl = window.location.origin;
-  return `${baseUrl}/portal/${portalType}?property=${propertyId}`;
+  const slugPath = workspaceSlug ? `/${workspaceSlug}` : '';
+  return `${baseUrl}/portal/${portalType}${slugPath}?property=${propertyId}`;
 };
 
 // Share functions
@@ -286,8 +287,16 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
   );
 }
 
+interface WorkspaceInfo {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  whatsapp_number: string | null;
+}
+
 export default function Portal() {
-  const { type } = useParams<{ type: 'commercial' | 'residential' }>();
+  const { type, workspaceSlug } = useParams<{ type: 'commercial' | 'residential'; workspaceSlug?: string }>();
   const config = portalConfig[type || 'commercial'];
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedPropertyType, setSelectedPropertyType] = useState<string>('all');
@@ -300,18 +309,37 @@ export default function Portal() {
   const [enquiryPhone, setEnquiryPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [workspaceWhatsApp, setWorkspaceWhatsApp] = useState<Record<string, string | null>>({});
+  const [currentWorkspace, setCurrentWorkspace] = useState<WorkspaceInfo | null>(null);
+  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceInfo[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, []);
 
   useEffect(() => {
     fetchPropertyTypes();
     fetchProperties();
-    fetchWorkspaceWhatsApp();
-  }, [type, selectedPropertyType]);
+  }, [type, selectedPropertyType, currentWorkspace]);
 
-  const fetchWorkspaceWhatsApp = async () => {
+  const fetchWorkspaces = async () => {
     const { data } = await supabase
       .from('workspace_contacts' as any)
       .select('id, whatsapp_number');
+    
+    // Also fetch full workspace info for slug matching
+    const { data: wsData } = await supabase
+      .from('workspaces')
+      .select('id, name, slug, logo_url, whatsapp_number');
+    
+    if (wsData) {
+      setAllWorkspaces(wsData as WorkspaceInfo[]);
+      if (workspaceSlug) {
+        const matched = wsData.find((w: any) => w.slug === workspaceSlug);
+        if (matched) setCurrentWorkspace(matched as WorkspaceInfo);
+      }
+    }
+
     if (data) {
       const map: Record<string, string | null> = {};
       (data as any[]).forEach((ws) => { map[ws.id] = ws.whatsapp_number; });
@@ -330,6 +358,11 @@ export default function Portal() {
       .select('*, property_type:property_types(name), branch:branches(name, city)')
       .in('portal_type', [type, 'rentals'])
       .in('status', ['available', 'sold', 'rented']);
+
+    // Filter by workspace if slug is provided
+    if (currentWorkspace) {
+      query = query.eq('workspace_id', currentWorkspace.id);
+    }
 
     if (selectedPropertyType !== 'all') {
       query = query.eq('property_type_id', selectedPropertyType);
@@ -407,6 +440,47 @@ export default function Portal() {
     setEnquiryProperty(property);
   };
 
+  // If no workspace slug provided, show workspace selection page
+  if (!workspaceSlug && allWorkspaces.length > 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className={`bg-gradient-to-r ${config.gradient} text-white`}>
+          <div className="container mx-auto px-4 py-8 md:py-12">
+            <div className="max-w-3xl">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">{config.title}</h1>
+              <p className="text-white/80 text-base">Select a business to browse properties</p>
+            </div>
+          </div>
+        </header>
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {allWorkspaces.map(ws => (
+              <Link key={ws.id} to={`/portal/${type}/${ws.slug}`}>
+                <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 group border-0 shadow-md">
+                  <CardContent className="p-6 flex items-center gap-4">
+                    {ws.logo_url ? (
+                      <img src={ws.logo_url} alt={ws.name} className="w-12 h-12 rounded-xl object-cover" />
+                    ) : (
+                      <div className={`w-12 h-12 bg-gradient-to-br ${config.gradient} rounded-xl flex items-center justify-center`}>
+                        <Building2 className="h-6 w-6 text-white" />
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">{ws.name}</h3>
+                      <p className="text-sm text-muted-foreground">View {type} properties</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const displayName = currentWorkspace?.name || 'Properties';
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Header */}
@@ -414,10 +488,14 @@ export default function Portal() {
         <div className="container mx-auto px-4 py-8 md:py-12">
           <div className="max-w-3xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <span className="text-white/80 font-medium">Room4Calicut</span>
+              {currentWorkspace?.logo_url ? (
+                <img src={currentWorkspace.logo_url} alt={displayName} className="w-10 h-10 rounded-xl object-cover" />
+              ) : (
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <Building2 className="h-5 w-5" />
+                </div>
+              )}
+              <span className="text-white/80 font-medium">{displayName}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">{config.title}</h1>
             <p className="text-white/80 text-base mb-4">{config.subtitle}</p>
@@ -470,7 +548,7 @@ export default function Portal() {
               formatPrice={formatPrice}
               onClick={() => handlePropertyClick(property)}
               onShare={(method) => shareProperty(property, type || 'commercial', method, toast)}
-              whatsappNumber={property.workspace_id ? workspaceWhatsApp[property.workspace_id] : null}
+              whatsappNumber={currentWorkspace?.whatsapp_number || (property.workspace_id ? workspaceWhatsApp[property.workspace_id] : null)}
             />
           ))}
         </div>
@@ -510,7 +588,7 @@ export default function Portal() {
                   onClick={() => handlePropertyClick(property)}
                   isSold
                   onShare={(method) => shareProperty(property, type || 'commercial', method, toast)}
-                  whatsappNumber={property.workspace_id ? workspaceWhatsApp[property.workspace_id] : null}
+                  whatsappNumber={currentWorkspace?.whatsapp_number || (property.workspace_id ? workspaceWhatsApp[property.workspace_id] : null)}
                 />
               ))}
             </div>
@@ -527,7 +605,7 @@ export default function Portal() {
         portalType={type || 'commercial'}
         gradient={config.gradient}
         accent={config.accent}
-        whatsappNumber={selectedProperty?.workspace_id ? workspaceWhatsApp[selectedProperty.workspace_id] : null}
+        whatsappNumber={currentWorkspace?.whatsapp_number || (selectedProperty?.workspace_id ? workspaceWhatsApp[selectedProperty.workspace_id] : null)}
       />
 
       {/* Enquiry Dialog */}
