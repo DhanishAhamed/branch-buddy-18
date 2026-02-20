@@ -63,12 +63,18 @@ interface Property {
   property_type: { name: string } | null;
   branch: { name: string; city: string } | null;
   youtube_url?: string | null;
+  workspace_id?: string | null;
 }
 
 interface Branch {
   id: string;
   name: string;
   city: string;
+}
+
+interface WorkspaceWhatsApp {
+  id: string;
+  whatsapp_number: string | null;
 }
 
 const portalConfig = {
@@ -120,7 +126,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 // Generate WhatsApp message URL
-const getWhatsAppUrl = (property: Property, portalType: string) => {
+const getWhatsAppUrl = (property: Property, portalType: string, whatsappNumber?: string | null) => {
   const priceText = property.price 
     ? `₹${property.price >= 10000000 ? (property.price / 10000000).toFixed(1) + 'Cr' : property.price >= 100000 ? (property.price / 100000).toFixed(0) + 'L' : property.price.toLocaleString()}`
     : 'Price on request';
@@ -132,8 +138,9 @@ const getWhatsAppUrl = (property: Property, portalType: string) => {
     `📍 ${property.address || property.branch?.city || 'Location not specified'}\n\n` +
     `Please share more details.`
   );
-  
-  return `https://wa.me/?text=${message}`;
+
+  const cleanNumber = whatsappNumber?.replace(/[^0-9+]/g, '').replace(/^\+/, '') || '';
+  return `https://wa.me/${cleanNumber}?text=${message}`;
 };
 
 interface PropertyCardProps {
@@ -144,9 +151,10 @@ interface PropertyCardProps {
   onClick: () => void;
   isSold?: boolean;
   onShare: (method: 'copy' | 'facebook' | 'twitter' | 'whatsapp') => void;
+  whatsappNumber?: string | null;
 }
 
-function PropertyCard({ property, config, type, formatPrice, onClick, isSold = false, onShare }: PropertyCardProps) {
+function PropertyCard({ property, config, type, formatPrice, onClick, isSold = false, onShare, whatsappNumber }: PropertyCardProps) {
   const sold = isSold || property.status === 'sold' || property.status === 'rented';
   const firstImage = property.images?.[0] || getPlaceholderImage(property.id, type);
 
@@ -262,7 +270,7 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
           {/* WhatsApp Button */}
           {!sold && (
             <a
-              href={getWhatsAppUrl(property, type)}
+              href={getWhatsAppUrl(property, type, whatsappNumber)}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -291,11 +299,13 @@ export default function Portal() {
   const [enquiryEmail, setEnquiryEmail] = useState('');
   const [enquiryPhone, setEnquiryPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [workspaceWhatsApp, setWorkspaceWhatsApp] = useState<Record<string, string | null>>({});
   const { toast } = useToast();
 
   useEffect(() => {
     fetchPropertyTypes();
     fetchProperties();
+    fetchWorkspaceWhatsApp();
   }, [type, selectedPropertyType]);
 
   const fetchPropertyTypes = async () => {

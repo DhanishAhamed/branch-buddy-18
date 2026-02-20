@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Palette, Save, Loader2, Upload } from 'lucide-react';
+import { Building2, Palette, Save, Loader2, Upload, Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
@@ -17,6 +17,7 @@ interface Workspace {
   primary_color: string | null;
   secondary_color: string | null;
   accent_color: string | null;
+  whatsapp_number: string | null;
 }
 
 export default function WorkspaceSettings() {
@@ -61,6 +62,7 @@ export default function WorkspaceSettings() {
         primary_color: workspace.primary_color,
         secondary_color: workspace.secondary_color,
         accent_color: workspace.accent_color,
+        whatsapp_number: workspace.whatsapp_number,
       })
       .eq('id', workspace.id);
 
@@ -146,6 +148,25 @@ export default function WorkspaceSettings() {
                       onChange={(e) => updateWorkspace(workspace.id, 'logo_url', e.target.value)}
                       placeholder="https://example.com/logo.png"
                     />
+                  </div>
+                </div>
+
+                {/* WhatsApp Number */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor={`whatsapp-${workspace.id}`} className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      WhatsApp Number
+                    </Label>
+                    <Input
+                      id={`whatsapp-${workspace.id}`}
+                      value={workspace.whatsapp_number || ''}
+                      onChange={(e) => updateWorkspace(workspace.id, 'whatsapp_number', e.target.value)}
+                      placeholder="+91 98765 43210"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This number will be used for WhatsApp chat in the customer portal
+                    </p>
                   </div>
                 </div>
 

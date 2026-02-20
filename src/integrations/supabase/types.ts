@@ -1060,6 +1060,7 @@ export type Database = {
           secondary_color: string | null
           slug: string
           updated_at: string
+          whatsapp_number: string | null
         }
         Insert: {
           accent_color?: string | null
@@ -1071,6 +1072,7 @@ export type Database = {
           secondary_color?: string | null
           slug: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Update: {
           accent_color?: string | null
@@ -1082,6 +1084,7 @@ export type Database = {
           secondary_color?: string | null
           slug?: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
