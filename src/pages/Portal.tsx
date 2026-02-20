@@ -62,6 +62,7 @@ interface Property {
   status: string;
   property_type: { name: string } | null;
   branch: { name: string; city: string } | null;
+  youtube_url?: string | null;
 }
 
 interface Branch {
