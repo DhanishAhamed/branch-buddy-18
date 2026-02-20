@@ -211,6 +211,7 @@ export default function Pipeline() {
     followupAt?: Date;
     propertyId?: string;
     siteVisitTime?: Date;
+    assignedStaffId?: string;
   }) => {
     const { leadId, toStatus } = transitionDialog;
 
@@ -218,6 +219,9 @@ export default function Pipeline() {
     const leadUpdate: any = { status: toStatus };
     if (data.siteVisitTime) {
       leadUpdate.site_visit_time = data.siteVisitTime.toISOString();
+    }
+    if (toStatus === 'site_visit_scheduled' && data.assignedStaffId) {
+      leadUpdate.assigned_to = data.assignedStaffId;
     }
 
     await supabase

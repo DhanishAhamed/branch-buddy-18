@@ -657,6 +657,7 @@ export type Database = {
           is_approved: boolean
           phone: string | null
           pipeline_access: Database["public"]["Enums"]["pipeline_access"]
+          staff_type: string | null
           updated_at: string
           user_id: string
         }
@@ -672,6 +673,7 @@ export type Database = {
           is_approved?: boolean
           phone?: string | null
           pipeline_access?: Database["public"]["Enums"]["pipeline_access"]
+          staff_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -687,6 +689,7 @@ export type Database = {
           is_approved?: boolean
           phone?: string | null
           pipeline_access?: Database["public"]["Enums"]["pipeline_access"]
+          staff_type?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -721,6 +724,7 @@ export type Database = {
           title: string
           updated_at: string
           workspace_id: string | null
+          youtube_url: string | null
         }
         Insert: {
           address?: string | null
@@ -742,6 +746,7 @@ export type Database = {
           title: string
           updated_at?: string
           workspace_id?: string | null
+          youtube_url?: string | null
         }
         Update: {
           address?: string | null
@@ -763,6 +768,7 @@ export type Database = {
           title?: string
           updated_at?: string
           workspace_id?: string | null
+          youtube_url?: string | null
         }
         Relationships: [
           {

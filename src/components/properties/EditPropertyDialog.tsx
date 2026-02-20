@@ -31,6 +31,7 @@ interface Property {
   status: string;
   images: string[] | null;
   location?: unknown;
+  youtube_url?: string | null;
 }
 
 interface EditPropertyDialogProps {
@@ -57,6 +58,7 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
   const [newImages, setNewImages] = useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [newVideos, setNewVideos] = useState<File[]>([]);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -75,6 +77,7 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
       setPropertyTypeId(property.property_type_id || '');
       setStatus(property.status);
       setExistingImages(property.images || []);
+      setYoutubeUrl(property.youtube_url || '');
       
       // Parse location
       if (property.location) {
@@ -188,6 +191,7 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
         status: status as any,
         location: locationPoint,
         images: allImages.length > 0 ? allImages : null,
+        youtube_url: youtubeUrl || null,
       })
       .eq('id', property.id);
 
@@ -374,6 +378,17 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
                 ))}
               </div>
             )}
+          </div>
+
+          {/* YouTube Video Link */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-youtube-url">YouTube Video Link</Label>
+            <Input
+              id="edit-youtube-url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
           </div>
 
           {/* Video Upload */}

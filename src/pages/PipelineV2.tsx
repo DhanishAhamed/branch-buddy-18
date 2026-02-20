@@ -270,6 +270,7 @@ export default function PipelineV2() {
     followupAt?: Date;
     propertyId?: string;
     siteVisitTime?: Date;
+    assignedStaffId?: string;
   }) => {
     const { leadId, leadName, toStatus } = transitionDialog;
 
@@ -282,6 +283,9 @@ export default function PipelineV2() {
     // Cross-pipeline handoff: site_visit_scheduled leads appear in both pipelines
     if (toStatus === 'site_visit_scheduled') {
       leadUpdate.pipeline = 'both';
+      if (data.assignedStaffId) {
+        leadUpdate.assigned_to = data.assignedStaffId;
+      }
     }
 
     await supabase
