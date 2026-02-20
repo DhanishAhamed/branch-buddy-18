@@ -86,6 +86,119 @@ export type Database = {
           },
         ]
       }
+      customer_properties: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          property_id: string
+          transaction_date: string | null
+          transaction_type: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          property_id: string
+          transaction_date?: string | null
+          transaction_type?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          property_id?: string
+          transaction_date?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_properties_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          branch_id: string
+          created_at: string
+          customer_type: string
+          email: string | null
+          id: string
+          lead_id: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          customer_type?: string
+          email?: string | null
+          id?: string
+          lead_id?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          customer_type?: string
+          email?: string | null
+          id?: string
+          lead_id?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_properties: {
         Row: {
           created_at: string

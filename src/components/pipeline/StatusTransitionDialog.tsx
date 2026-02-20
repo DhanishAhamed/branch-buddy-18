@@ -48,7 +48,7 @@ export function StatusTransitionDialog({
   const [siteVisitTime, setSiteVisitTime] = useState('');
 
   const showFollowup = toStatus === 'contacted' || toStatus === 'qualified' || toStatus === 'need_followup';
-  const showProperty = toStatus === 'qualified';
+  const showProperty = toStatus === 'qualified' || toStatus === 'closed_won';
   const showSiteVisit = toStatus === 'site_visit_scheduled';
   const showCustomerResponse = toStatus === 'contacted';
 
@@ -115,6 +115,8 @@ export function StatusTransitionDialog({
         return 'Schedule Site Visit';
       case 'need_followup':
         return 'Set Followup';
+      case 'closed_won':
+        return 'Convert to Sale';
       default:
         return 'Update Status';
     }

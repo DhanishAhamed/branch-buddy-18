@@ -17,6 +17,7 @@ import {
   Palette,
   Contact,
   CalendarDays,
+  UserCheck,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -45,6 +46,7 @@ const mainItems = [
   { title: 'Map Search', url: '/map', icon: Map },
   { title: 'Chat', url: '/chat', icon: MessageSquare },
   { title: 'Calendar', url: '/calendar', icon: CalendarDays },
+  { title: 'Customers', url: '/customers', icon: UserCheck },
 ];
 
 const adminItems = [

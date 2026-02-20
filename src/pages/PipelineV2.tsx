@@ -224,7 +224,7 @@ export default function PipelineV2() {
     if (!allStageNames.includes(newStatus)) return;
 
     // Check if we need a transition dialog
-    const needsDialog = ['contacted', 'qualified', 'site_visit_scheduled', 'need_followup'].includes(newStatus);
+    const needsDialog = ['contacted', 'qualified', 'site_visit_scheduled', 'need_followup', 'closed_won'].includes(newStatus);
 
     if (needsDialog) {
       setTransitionDialog({
@@ -354,13 +354,39 @@ export default function PipelineV2() {
       });
     }
 
+    // Create customer if closed_won
+    if (toStatus === 'closed_won') {
+      const lead = leads.find(l => l.id === leadId);
+      if (lead && profile?.branch_id) {
+        const { data: newCustomer } = await supabase.from('customers').insert({
+          name: lead.name,
+          phone: lead.phone || null,
+          email: lead.email || null,
+          lead_id: leadId,
+          branch_id: profile.branch_id,
+          workspace_id: activeWorkspace?.id || null,
+          customer_type: 'buyer',
+          notes: data.callNotes || null,
+        }).select('id').single();
+
+        // Link the property to the customer
+        if (newCustomer && data.propertyId) {
+          await supabase.from('customer_properties').insert({
+            customer_id: newCustomer.id,
+            property_id: data.propertyId,
+            transaction_type: 'bought',
+          });
+        }
+      }
+    }
+
     // Update local state
     setLeads(prev => prev.map(l => 
       l.id === leadId ? { ...l, status: toStatus, ...(toStatus === 'site_visit_scheduled' ? { pipeline: 'both' } : {}) } : l
     ));
 
     setTransitionDialog({ open: false, leadId: '', leadName: '', fromStatus: '', toStatus: '' });
-    toast({ title: 'Lead updated successfully' });
+    toast({ title: toStatus === 'closed_won' ? 'Lead converted to customer!' : 'Lead updated successfully' });
   };
 
   const canAccess = profile?.pipeline_access === 'both' || profile?.pipeline_access === activeTab;
