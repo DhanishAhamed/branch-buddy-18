@@ -1283,14 +1283,23 @@ export type Database = {
       workspace_contacts: {
         Row: {
           id: string | null
+          logo_url: string | null
+          name: string | null
+          slug: string | null
           whatsapp_number: string | null
         }
         Insert: {
           id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          slug?: string | null
           whatsapp_number?: string | null
         }
         Update: {
           id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          slug?: string | null
           whatsapp_number?: string | null
         }
         Relationships: []
