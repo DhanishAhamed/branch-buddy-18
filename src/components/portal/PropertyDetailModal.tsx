@@ -125,6 +125,7 @@ interface PropertyDetailModalProps {
   portalType: string;
   gradient: string;
   accent: string;
+  whatsappNumber?: string | null;
 }
 
 // WhatsApp icon component
@@ -184,7 +185,8 @@ export function PropertyDetailModal({
   onEnquire,
   portalType,
   gradient,
-  accent
+  accent,
+  whatsappNumber
 }: PropertyDetailModalProps) {
   const [currentImage, setCurrentImage] = useState(0);
   const { toast } = useToast();
@@ -492,13 +494,20 @@ export function PropertyDetailModal({
                     
                     {/* WhatsApp Button */}
                     <a
-                      href={`https://wa.me/?text=${encodeURIComponent(
-                        `Hi! I'm interested in this ${portalType} property:\n\n` +
-                        `🏠 ${property.title}\n` +
-                        `💰 ${property.price ? (property.price >= 10000000 ? '₹' + (property.price / 10000000).toFixed(1) + 'Cr' : property.price >= 100000 ? '₹' + (property.price / 100000).toFixed(0) + 'L' : '₹' + property.price.toLocaleString()) : 'Price on request'}${portalType === 'rentals' ? '/month' : ''}\n` +
-                        `📍 ${property.address || property.branch?.city || 'Location not specified'}\n\n` +
-                        `Please share more details.`
-                      )}`}
+                      href={(() => {
+                        const priceText = property.price 
+                          ? (property.price >= 10000000 ? '₹' + (property.price / 10000000).toFixed(1) + 'Cr' : property.price >= 100000 ? '₹' + (property.price / 100000).toFixed(0) + 'L' : '₹' + property.price.toLocaleString())
+                          : 'Price on request';
+                        const message = encodeURIComponent(
+                          `Hi! I'm interested in this ${portalType} property:\n\n` +
+                          `🏠 ${property.title}\n` +
+                          `💰 ${priceText}${portalType === 'rentals' ? '/month' : ''}\n` +
+                          `📍 ${property.address || property.branch?.city || 'Location not specified'}\n\n` +
+                          `Please share more details.`
+                        );
+                        const cleanNumber = whatsappNumber?.replace(/[^0-9+]/g, '').replace(/^\+/, '') || '';
+                        return `https://wa.me/${cleanNumber}?text=${message}`;
+                      })()}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 w-full h-11 rounded-md bg-[#25D366] hover:bg-[#128C7E] text-white font-medium transition-colors"

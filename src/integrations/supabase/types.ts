@@ -81,6 +81,13 @@ export type Database = {
             foreignKeyName: "call_notes_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
+            referencedRelation: "workspace_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_notes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
@@ -151,6 +158,13 @@ export type Database = {
             foreignKeyName: "contact_entries_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
+            referencedRelation: "workspace_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_entries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
@@ -196,6 +210,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_folders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -309,6 +330,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -532,6 +560,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -789,6 +824,13 @@ export type Database = {
             foreignKeyName: "properties_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
+            referencedRelation: "workspace_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
@@ -918,6 +960,13 @@ export type Database = {
             foreignKeyName: "tasks_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
+            referencedRelation: "workspace_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
@@ -967,6 +1016,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_workspaces_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_workspaces_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -1150,6 +1206,7 @@ export type Database = {
           status: Database["public"]["Enums"]["property_status"] | null
           title: string | null
           updated_at: string | null
+          workspace_id: string | null
           youtube_url: string | null
         }
         Insert: {
@@ -1169,6 +1226,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["property_status"] | null
           title?: string | null
           updated_at?: string | null
+          workspace_id?: string | null
           youtube_url?: string | null
         }
         Update: {
@@ -1188,6 +1246,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["property_status"] | null
           title?: string | null
           updated_at?: string | null
+          workspace_id?: string | null
           youtube_url?: string | null
         }
         Relationships: [
@@ -1205,7 +1264,36 @@ export type Database = {
             referencedRelation: "property_types"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "properties_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      workspace_contacts: {
+        Row: {
+          id: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          id?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          id?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {

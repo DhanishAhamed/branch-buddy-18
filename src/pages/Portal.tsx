@@ -308,6 +308,17 @@ export default function Portal() {
     fetchWorkspaceWhatsApp();
   }, [type, selectedPropertyType]);
 
+  const fetchWorkspaceWhatsApp = async () => {
+    const { data } = await supabase
+      .from('workspace_contacts' as any)
+      .select('id, whatsapp_number');
+    if (data) {
+      const map: Record<string, string | null> = {};
+      (data as any[]).forEach((ws) => { map[ws.id] = ws.whatsapp_number; });
+      setWorkspaceWhatsApp(map);
+    }
+  };
+
   const fetchPropertyTypes = async () => {
     const { data } = await supabase.from('property_types').select('*').in('portal_type', [type, 'rentals']);
     if (data) setPropertyTypes(data);
@@ -459,6 +470,7 @@ export default function Portal() {
               formatPrice={formatPrice}
               onClick={() => handlePropertyClick(property)}
               onShare={(method) => shareProperty(property, type || 'commercial', method, toast)}
+              whatsappNumber={property.workspace_id ? workspaceWhatsApp[property.workspace_id] : null}
             />
           ))}
         </div>
@@ -498,6 +510,7 @@ export default function Portal() {
                   onClick={() => handlePropertyClick(property)}
                   isSold
                   onShare={(method) => shareProperty(property, type || 'commercial', method, toast)}
+                  whatsappNumber={property.workspace_id ? workspaceWhatsApp[property.workspace_id] : null}
                 />
               ))}
             </div>
@@ -514,6 +527,7 @@ export default function Portal() {
         portalType={type || 'commercial'}
         gradient={config.gradient}
         accent={config.accent}
+        whatsappNumber={selectedProperty?.workspace_id ? workspaceWhatsApp[selectedProperty.workspace_id] : null}
       />
 
       {/* Enquiry Dialog */}
