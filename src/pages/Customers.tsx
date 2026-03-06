@@ -47,10 +47,12 @@ export default function Customers() {
   );
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-foreground">Customers</h1>
-        <Badge variant="outline">{customers.length} total</Badge>
+    <div className="p-3 md:p-6 lg:p-8">
+      <div className="flex items-center justify-between mb-4 md:mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Customers</h1>
+          <Badge variant="outline">{customers.length} total</Badge>
+        </div>
       </div>
 
       <div className="relative mb-4">
