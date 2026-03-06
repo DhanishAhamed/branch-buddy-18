@@ -1,11 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserPlus, CalendarCheck, AlertCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowUpRight, TrendingUp } from 'lucide-react';
 import { useDevice } from '@/hooks/use-device';
+import { useNavigate } from 'react-router-dom';
 
 interface KPIData {
   activeLeads: number;
@@ -14,6 +12,8 @@ interface KPIData {
   completedVisits: number;
   remainingVisits: number;
   lastMonthLeads: number;
+  pipelineValue: number;
+  activeDeals: number;
 }
 
 export function SwipeableKPICards() {
@@ -24,11 +24,14 @@ export function SwipeableKPICards() {
     completedVisits: 0,
     remainingVisits: 0,
     lastMonthLeads: 0,
+    pipelineValue: 0,
+    activeDeals: 0,
   });
   const { user, profile } = useAuth();
   const { isMobile } = useDevice();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user && profile?.branch_id) {
@@ -79,6 +82,13 @@ export function SwipeableKPICards() {
       .eq('is_completed', false)
       .lt('scheduled_at', new Date().toISOString());
 
+    // Pipeline value - count negotiating leads
+    const { count: activeDeals } = await supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('assigned_to', user?.id)
+      .eq('status', 'negotiating');
+
     setKpis({
       activeLeads: activeLeads || 0,
       siteVisitsToday: totalVisits,
@@ -86,6 +96,8 @@ export function SwipeableKPICards() {
       completedVisits,
       remainingVisits: totalVisits - completedVisits,
       lastMonthLeads: lastMonthLeads || 0,
+      pipelineValue: 0,
+      activeDeals: activeDeals || 0,
     });
   };
 
@@ -95,44 +107,54 @@ export function SwipeableKPICards() {
 
   const cards = [
     {
-      title: 'ACTIVE LEADS',
-      value: kpis.activeLeads,
-      icon: UserPlus,
-      iconBg: 'bg-primary/15',
-      iconColor: 'text-primary',
+      title: 'Active Leads',
+      value: kpis.activeLeads.toString(),
+      isDark: true,
+      pill: `${leadPercentChange >= 0 ? '+' : ''}${leadPercentChange}%`,
+      pillType: 'white' as const,
       subtitle: `vs ${kpis.lastMonthLeads} last month`,
-      badge: leadPercentChange >= 0 ? `+${leadPercentChange}%` : `${leadPercentChange}%`,
-      badgeVariant: 'success' as const,
+      route: '/leads',
     },
     {
-      title: 'SITE VISITS TODAY',
+      title: 'Site Visits Today',
       value: kpis.siteVisitsToday.toString().padStart(2, '0'),
-      icon: CalendarCheck,
-      iconBg: 'bg-primary/15',
-      iconColor: 'text-primary',
+      isDark: false,
+      pill: 'On Track',
+      pillType: 'green' as const,
       subtitle: `${kpis.completedVisits} completed, ${kpis.remainingVisits} remaining`,
-      badge: 'On Track',
-      badgeVariant: 'success' as const,
+      route: '/calendar',
     },
     {
-      title: 'PENDING FOLLOW-UPS',
+      title: 'Pending Follow-ups',
       value: kpis.pendingFollowups.toString().padStart(2, '0'),
-      icon: AlertCircle,
-      iconBg: 'bg-destructive/15',
-      iconColor: 'text-destructive',
+      isDark: false,
+      pill: kpis.pendingFollowups > 0 ? 'Attention Required' : 'All Clear',
+      pillType: kpis.pendingFollowups > 0 ? 'red' as const : 'green' as const,
       subtitle: kpis.pendingFollowups > 0 ? 'Overdue by 2+ days' : 'All caught up',
-      badge: kpis.pendingFollowups > 0 ? 'Attention Required' : 'All Clear',
-      badgeVariant: kpis.pendingFollowups > 0 ? 'destructive' as const : 'success' as const,
+      route: '/calendar',
+    },
+    {
+      title: 'Pipeline Value',
+      value: `₹${kpis.pipelineValue.toLocaleString('en-IN')}`,
+      isDark: false,
+      pill: 'On Discuss',
+      pillType: 'amber' as const,
+      subtitle: `${kpis.activeDeals} active deals`,
+      route: '/pipeline',
     },
   ];
+
+  const pillClasses = {
+    white: 'bg-white/20 text-white',
+    green: 'bg-[hsl(var(--green-pale))] text-[hsl(var(--green-dark))]',
+    red: 'bg-destructive/10 text-destructive',
+    amber: 'bg-[hsl(43_96%_90%)] text-[hsl(26_60%_30%)]',
+  };
 
   const scrollToCard = (index: number) => {
     if (scrollRef.current) {
       const cardWidth = scrollRef.current.offsetWidth;
-      scrollRef.current.scrollTo({
-        left: index * cardWidth,
-        behavior: 'smooth',
-      });
+      scrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
       setCurrentIndex(index);
     }
   };
@@ -145,7 +167,39 @@ export function SwipeableKPICards() {
     }
   };
 
-  // Mobile: swipeable horizontal scroll
+  const renderCard = (card: typeof cards[0], index: number) => (
+    <div
+      key={card.title}
+      onClick={() => navigate(card.route)}
+      className={`relative rounded-2xl p-5 border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+        card.isDark
+          ? 'bg-[hsl(var(--green-dark))] border-[hsl(var(--green-dark))] text-white'
+          : 'bg-card border-border text-foreground'
+      }`}
+    >
+      {/* Arrow link */}
+      <div className={`absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center ${
+        card.isDark ? 'bg-white/15' : 'bg-muted'
+      }`}>
+        <ArrowUpRight className={`h-3.5 w-3.5 ${card.isDark ? 'text-white' : 'text-muted-foreground'}`} />
+      </div>
+
+      <p className={`text-[12px] font-medium mb-2 ${card.isDark ? 'text-white/65' : 'text-muted-foreground'}`}>
+        {card.title}
+      </p>
+      <p className={`text-[36px] font-extrabold leading-none mb-2 ${card.title === 'Pipeline Value' ? 'text-[28px]' : ''}`}>
+        {card.value}
+      </p>
+      <div className={`flex items-center gap-1.5 text-[11.5px] ${card.isDark ? 'text-white/60' : 'text-muted-foreground'}`}>
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${pillClasses[card.pillType]}`}>
+          {card.pillType === 'white' && leadPercentChange >= 0 && <TrendingUp className="h-3 w-3" />}
+          {card.pill}
+        </span>
+        {card.subtitle}
+      </div>
+    </div>
+  );
+
   if (isMobile) {
     return (
       <div className="relative">
@@ -156,40 +210,11 @@ export function SwipeableKPICards() {
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {cards.map((card, index) => (
-            <Card 
-              key={card.title} 
-              className="flex-shrink-0 w-[calc(100%-2rem)] snap-center border-border/50 bg-card"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`${card.iconBg} p-2.5 rounded-xl`}>
-                    <card.icon className={`h-5 w-5 ${card.iconColor}`} />
-                  </div>
-                  <Badge 
-                    variant={card.badgeVariant === 'destructive' ? 'destructive' : 'secondary'}
-                    className={`text-[10px] font-medium ${
-                      card.badgeVariant === 'success' 
-                        ? 'bg-primary/15 text-primary hover:bg-primary/20 border-0' 
-                        : 'bg-destructive/15 text-destructive hover:bg-destructive/20 border-0'
-                    }`}
-                  >
-                    {card.badgeVariant === 'success' && card.badge.startsWith('+') && (
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                    )}
-                    {card.badge}
-                  </Badge>
-                </div>
-                <p className="text-[11px] font-semibold text-muted-foreground tracking-wide mb-1">
-                  {card.title}
-                </p>
-                <p className="text-3xl font-bold text-foreground mb-1">{card.value}</p>
-                <p className="text-xs text-muted-foreground">{card.subtitle}</p>
-              </CardContent>
-            </Card>
+            <div key={card.title} className="flex-shrink-0 w-[calc(100%-2rem)] snap-center">
+              {renderCard(card, index)}
+            </div>
           ))}
         </div>
-        
-        {/* Pagination dots */}
         <div className="flex justify-center gap-2 mt-4">
           {cards.map((_, index) => (
             <button
@@ -205,38 +230,9 @@ export function SwipeableKPICards() {
     );
   }
 
-  // Desktop & Tablet: grid layout with responsive columns
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      {cards.map((card) => (
-        <Card key={card.title} className="border-border/50 bg-card hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className={`${card.iconBg} p-2.5 rounded-xl`}>
-                <card.icon className={`h-5 w-5 ${card.iconColor}`} />
-              </div>
-              <Badge 
-                variant={card.badgeVariant === 'destructive' ? 'destructive' : 'secondary'}
-                className={`text-[10px] font-medium ${
-                  card.badgeVariant === 'success' 
-                    ? 'bg-primary/15 text-primary hover:bg-primary/20 border-0' 
-                    : 'bg-destructive/15 text-destructive hover:bg-destructive/20 border-0'
-                }`}
-              >
-                {card.badgeVariant === 'success' && card.badge.startsWith('+') && (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                )}
-                {card.badge}
-              </Badge>
-            </div>
-            <p className="text-[11px] font-semibold text-muted-foreground tracking-wide mb-1">
-              {card.title}
-            </p>
-            <p className="text-3xl font-bold text-foreground mb-1">{card.value}</p>
-            <p className="text-xs text-muted-foreground">{card.subtitle}</p>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {cards.map((card, index) => renderCard(card, index))}
     </div>
   );
 }

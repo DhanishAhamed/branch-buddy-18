@@ -41,7 +41,6 @@ export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownP
       label: 'Schedule Visit',
       icon: CalendarPlus,
       onClick: () => {
-        // Navigate to calendar or open schedule modal
         window.location.href = '/pipeline';
       },
       description: 'Book a site visit',
@@ -50,7 +49,6 @@ export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownP
       label: 'Create Task',
       icon: FileText,
       onClick: () => {
-        // Could open a task creation modal
         window.location.href = '/dashboard';
       },
       description: 'Add a new task',
@@ -61,11 +59,10 @@ export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownP
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
+          <button className="flex items-center gap-1.5 bg-[hsl(var(--green-dark))] text-white border-0 rounded-[10px] px-4 py-2 text-[13px] font-semibold hover:bg-[hsl(var(--green-mid))] transition-colors">
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             Quick Actions
-            <ChevronDown className="h-3 w-3 opacity-60" />
-          </Button>
+          </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 bg-popover border-border z-50">
           <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
