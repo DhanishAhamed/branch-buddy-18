@@ -42,7 +42,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-7 space-y-5">
+    <div className="p-3 md:p-5 lg:p-7 space-y-4 md:space-y-5">
       {/* Mobile Workspace Switcher */}
       {isMobile && (
         <div className="flex items-center justify-between">
@@ -53,33 +53,43 @@ export default function Dashboard() {
       {/* Dashboard Header */}
       <DashboardHeader onLeadAdded={handleLeadAdded} />
 
-      {/* KPI Cards - 4 cols */}
+      {/* KPI Cards - responsive grid */}
       <SwipeableKPICards key={`kpi-${refreshKey}`} />
 
-      {/* Middle Row: Chart + Reminder/Sources + Schedule */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_340px_260px] gap-4">
-        {/* Performance Chart */}
-        <div className="md:col-span-2 lg:col-span-1">
+      {/* Middle Row: responsive stacking */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_260px] gap-4">
+        {/* Performance Chart - full width on mobile/tablet */}
+        <div className="col-span-1 lg:col-span-1">
           <PerformanceChart key={`chart-${refreshKey}`} />
         </div>
         
-        {/* Reminder + Lead Sources */}
-        <div className="flex flex-col gap-4">
-          <SiteVisitReminder />
-          <LeadSourcesPanel />
+        {/* Reminder + Lead Sources - side by side on tablet, stacked on mobile */}
+        <div className="flex flex-col sm:flex-row lg:flex-col gap-4">
+          <div className="flex-1">
+            <SiteVisitReminder />
+          </div>
+          <div className="flex-1">
+            <LeadSourcesPanel />
+          </div>
         </div>
 
         {/* Schedule */}
-        <div className="md:col-span-2 lg:col-span-1">
+        <div className="col-span-1">
           <ScheduleWidget />
         </div>
       </div>
 
-      {/* Bottom Row: Recent Leads + Agent Leaderboard + Property Hotlist */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_340px_1fr] gap-4">
-        <RecentLeads key={`leads-${refreshKey}`} />
-        <AgentLeaderboard />
-        <PropertyHotlist />
+      {/* Bottom Row: responsive stacking */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_1fr] gap-4">
+        <div className="col-span-1 lg:col-span-1 order-1">
+          <RecentLeads key={`leads-${refreshKey}`} />
+        </div>
+        <div className="col-span-1 sm:col-span-1 order-3 lg:order-2">
+          <AgentLeaderboard />
+        </div>
+        <div className="col-span-1 sm:col-span-1 order-2 lg:order-3">
+          <PropertyHotlist />
+        </div>
       </div>
     </div>
   );
