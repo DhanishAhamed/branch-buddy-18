@@ -370,7 +370,7 @@ export default function MapSearch() {
 
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-3.5rem)] min-h-0">
+    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] min-h-0">
       {/* Left Side - Map & Filters */}
       <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col h-full min-h-0">
         {/* Filters */}
