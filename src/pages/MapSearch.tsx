@@ -370,9 +370,9 @@ export default function MapSearch() {
 
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-3.5rem)] min-h-0">
+    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] min-h-0">
       {/* Left Side - Map & Filters */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col h-full min-h-0">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col min-h-0 md:h-full">
         {/* Filters */}
         <Card className="m-4 mb-0 border-border relative z-[1000]">
           <CardContent className="p-4 space-y-4">
@@ -446,7 +446,7 @@ export default function MapSearch() {
         </Card>
 
         {/* Map */}
-        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border min-h-0 relative">
+        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border relative" style={{ minHeight: '280px' }}>
           {mapLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <div className="animate-pulse text-muted-foreground">Loading map...</div>
@@ -461,7 +461,7 @@ export default function MapSearch() {
       </div>
 
       {/* Right Side - Property Cards */}
-      <div className="w-full md:w-1/2 lg:w-3/5 h-full min-h-0 overflow-y-auto border-l border-border bg-muted/30">
+      <div className="w-full md:w-1/2 lg:w-3/5 min-h-0 overflow-y-auto border-t md:border-t-0 md:border-l border-border bg-muted/30 md:h-full">
         <div className="p-4 space-y-4">
           <h2 className="font-semibold text-lg text-foreground flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -480,7 +480,7 @@ export default function MapSearch() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               {filteredProperties.map((property) => (
                 <Card
                   key={property.id}

@@ -3,35 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  Home,
-  Users,
-  MessageSquare,
-  Map,
-  Building2,
-  Settings,
-  LogOut,
-  Kanban,
-  Globe,
-  Copy,
-  Search,
-  Palette,
-  Contact,
-  CalendarDays,
-  UserCheck,
-  BookUser,
-  Smartphone,
+  Home, Users, MessageSquare, Map, Building2, Settings, LogOut,
+  Kanban, Globe, Copy, Search, Palette, Contact, CalendarDays,
+  UserCheck, BookUser, Smartphone,
 } from 'lucide-react';
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarFooter,
-  useSidebar,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarFooter, useSidebar,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -40,6 +19,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { supabase } from '@/integrations/supabase/client';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const mainItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
@@ -71,7 +51,11 @@ const allSearchItems = [
   { title: 'Owner Contacts', url: '/admin/owners' },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  onNavClick?: () => void;
+}
+
+export function AppSidebar({ onNavClick }: AppSidebarProps) {
   const { state } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,7 +69,6 @@ export function AppSidebar() {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Fetch lead count for badge
   useEffect(() => {
     if (user) {
       supabase
@@ -97,7 +80,6 @@ export function AppSidebar() {
     }
   }, [user]);
 
-  // ⌘K shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -118,6 +100,7 @@ export function AppSidebar() {
     navigate(url);
     setSearchOpen(false);
     setSearchQuery('');
+    onNavClick?.();
   };
 
   const copyPortalLink = (type: string) => {
@@ -128,16 +111,63 @@ export function AppSidebar() {
 
   const canViewOwners = profile?.can_view_owners || isAdmin;
 
+  const handleNavItemClick = () => {
+    onNavClick?.();
+  };
+
+  const renderNavItem = (item: { title: string; url: string; icon: any }, showBadge?: boolean) => {
+    const Icon = item.icon;
+    const active = isActive(item.url);
+
+    const content = (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton
+          asChild
+          isActive={active}
+          className={`relative transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${
+            active
+              ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="" onClick={handleNavItemClick}>
+            {active && (
+              <span className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-sm bg-[hsl(var(--green-accent))]" />
+            )}
+            <Icon className={`h-4 w-4 ${active ? 'opacity-100' : 'opacity-70'}`} />
+            {!collapsed && <span>{item.title}</span>}
+            {!collapsed && showBadge && leadCount > 0 && (
+              <span className="ml-auto text-[10px] font-bold bg-[hsl(var(--green-accent))] text-white px-1.5 py-0.5 rounded-full">
+                {leadCount > 99 ? '99+' : leadCount}
+              </span>
+            )}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+
+    if (collapsed) {
+      return (
+        <TooltipProvider key={item.title}>
+          <Tooltip>
+            <TooltipTrigger asChild>{content}</TooltipTrigger>
+            <TooltipContent side="right">{item.title}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return content;
+  };
+
   return (
     <>
       <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
         <SidebarContent className="px-3">
-          {/* Workspace Switcher / Logo */}
           <SidebarGroup className="pt-6 pb-4 border-b border-sidebar-border">
             <WorkspaceSwitcher collapsed={collapsed} />
           </SidebarGroup>
 
-          {/* Search Bar */}
           {!collapsed && (
             <SidebarGroup className="py-3">
               <button
@@ -151,66 +181,18 @@ export function AppSidebar() {
             </SidebarGroup>
           )}
 
-          {/* Main Navigation */}
           <SidebarGroup>
             <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground px-2 mb-1.5 font-semibold">
               {!collapsed && 'Main Menu'}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {mainItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      className={`relative transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${
-                        isActive(item.url) 
-                          ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold' 
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      }`}
-                    >
-                      <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="">
-                        {isActive(item.url) && (
-                          <span className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-sm bg-[hsl(var(--green-accent))]" />
-                        )}
-                        <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'opacity-100' : 'opacity-70'}`} />
-                        {!collapsed && <span>{item.title}</span>}
-                        {!collapsed && item.title === 'Leads' && leadCount > 0 && (
-                          <span className="ml-auto text-[10px] font-bold bg-[hsl(var(--green-accent))] text-white px-1.5 py-0.5 rounded-full">
-                            {leadCount > 99 ? '99+' : leadCount}
-                          </span>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-
-                {canViewOwners && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive('/admin/owners')}
-                      className={`relative transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${
-                        isActive('/admin/owners') 
-                          ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold' 
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      }`}
-                    >
-                      <NavLink to="/admin/owners" className="flex items-center gap-3 py-2.5" activeClassName="">
-                        {isActive('/admin/owners') && (
-                          <span className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-sm bg-[hsl(var(--green-accent))]" />
-                        )}
-                        <Contact className={`h-4 w-4 ${isActive('/admin/owners') ? 'opacity-100' : 'opacity-70'}`} />
-                        {!collapsed && <span>Owner Contacts</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                {mainItems.map((item) => renderNavItem(item, item.title === 'Leads'))}
+                {canViewOwners && renderNavItem({ title: 'Owner Contacts', url: '/admin/owners', icon: Contact })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {/* Portals Section */}
           <SidebarGroup>
             <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground px-2 mb-1.5 font-semibold">
               {!collapsed && 'Customer Portals'}
@@ -224,12 +206,12 @@ export function AppSidebar() {
                         asChild
                         isActive={isActive(item.url)}
                         className={`relative flex-1 transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${
-                          isActive(item.url) 
-                            ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold' 
+                          isActive(item.url)
+                            ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold'
                             : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                         }`}
                       >
-                        <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="">
+                        <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="" onClick={handleNavItemClick}>
                           {isActive(item.url) && (
                             <span className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-sm bg-[hsl(var(--green-accent))]" />
                           )}
@@ -254,7 +236,6 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {/* Admin Section */}
           {isAdmin && (
             <SidebarGroup>
               <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground px-2 mb-1.5 font-semibold">
@@ -262,33 +243,12 @@ export function AppSidebar() {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {adminItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive(item.url)}
-                        className={`relative transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${
-                          isActive(item.url) 
-                            ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold' 
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        }`}
-                      >
-                        <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="">
-                          {isActive(item.url) && (
-                            <span className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-sm bg-[hsl(var(--green-accent))]" />
-                          )}
-                          <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'opacity-100' : 'opacity-70'}`} />
-                          {!collapsed && <span>{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {adminItems.map((item) => renderNavItem(item))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
           )}
 
-          {/* Mobile App CTA Card */}
           {!collapsed && (
             <SidebarGroup className="mt-auto pt-4">
               <div className="bg-[hsl(var(--green-dark))] rounded-[14px] p-3 text-white">
@@ -305,7 +265,6 @@ export function AppSidebar() {
           )}
         </SidebarContent>
 
-        {/* Footer */}
         <SidebarFooter className="border-t border-sidebar-border p-3">
           <div className={`flex items-center gap-3 p-2 rounded-lg ${collapsed ? 'justify-center' : ''}`}>
             <Avatar className="h-9 w-9">
@@ -332,7 +291,6 @@ export function AppSidebar() {
         </SidebarFooter>
       </Sidebar>
 
-      {/* Search Dialog */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-md p-0 gap-0">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border">

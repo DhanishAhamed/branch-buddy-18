@@ -5,15 +5,15 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { User, Phone } from 'lucide-react';
-import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { User, Phone, Plus } from 'lucide-react';
+import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors, TouchSensor } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { StatusTransitionDialog } from '@/components/pipeline/StatusTransitionDialog';
 import { LeadDetailModal } from '@/components/leads/LeadDetailModal';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Lead {
   id: string;
@@ -62,7 +62,7 @@ function DraggableCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
           onClick();
         }
       }}
-      className={`p-3 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors cursor-grab active:cursor-grabbing ${isDragging ? 'shadow-lg' : ''}`}
+      className={`p-3 bg-card rounded-xl border border-border hover:border-primary/50 transition-colors cursor-grab active:cursor-grabbing ${isDragging ? 'shadow-lg' : ''}`}
     >
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -70,6 +70,9 @@ function DraggableCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-foreground truncate text-sm">{lead.name}</p>
+          {lead.phone && (
+            <p className="text-xs text-muted-foreground truncate">{lead.phone}</p>
+          )}
         </div>
       </div>
     </div>
@@ -109,11 +112,12 @@ export default function Pipeline() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [activeTab, setActiveTab] = useState('ops');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [mobileActiveStage, setMobileActiveStage] = useState<string | null>(null);
   const { profile } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
-  // Transition dialog state
   const [transitionDialog, setTransitionDialog] = useState<{
     open: boolean;
     leadId: string;
@@ -122,14 +126,14 @@ export default function Pipeline() {
     toStatus: string;
   }>({ open: false, leadId: '', leadName: '', fromStatus: '', toStatus: '' });
 
-  // Lead detail modal state
   const [detailModal, setDetailModal] = useState<{ open: boolean; leadId: string | null }>({
     open: false,
     leadId: null,
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
   useEffect(() => {
@@ -149,7 +153,12 @@ export default function Pipeline() {
       .from('pipeline_stages')
       .select('*')
       .order('position');
-    if (data) setStages(data);
+    if (data) {
+      setStages(data);
+      if (!mobileActiveStage && data.length > 0) {
+        setMobileActiveStage(data[0].name);
+      }
+    }
   };
 
   const fetchLeads = async () => {
@@ -181,7 +190,6 @@ export default function Pipeline() {
     const allStageNames = stages.map(s => s.name);
     if (!allStageNames.includes(newStatus)) return;
 
-    // Check if we need a transition dialog
     const needsDialog = ['contacted', 'qualified', 'site_visit_scheduled', 'need_followup'].includes(newStatus);
 
     if (needsDialog) {
@@ -193,7 +201,6 @@ export default function Pipeline() {
         toStatus: newStatus,
       });
     } else {
-      // Direct update without dialog
       setLeads(prev => prev.map(l => 
         l.id === leadId ? { ...l, status: newStatus } : l
       ));
@@ -215,7 +222,6 @@ export default function Pipeline() {
   }) => {
     const { leadId, toStatus } = transitionDialog;
 
-    // Update lead status
     const leadUpdate: any = { status: toStatus };
     if (data.siteVisitTime) {
       leadUpdate.site_visit_time = data.siteVisitTime.toISOString();
@@ -229,7 +235,6 @@ export default function Pipeline() {
       .update(leadUpdate)
       .eq('id', leadId);
 
-    // Add call note
     if (data.callNotes) {
       await supabase.from('call_notes').insert([{
         lead_id: leadId,
@@ -240,9 +245,7 @@ export default function Pipeline() {
       }]);
     }
 
-    // Link property if selected
     if (data.propertyId) {
-      // Check if already exists, if not insert
       const { data: existing } = await supabase
         .from('lead_properties')
         .select('id')
@@ -258,7 +261,6 @@ export default function Pipeline() {
       }
     }
 
-    // Update local state
     setLeads(prev => prev.map(l => 
       l.id === leadId ? { ...l, status: toStatus } : l
     ));
@@ -273,35 +275,88 @@ export default function Pipeline() {
   const canAccess = profile?.pipeline_access === 'both' || profile?.pipeline_access === activeTab;
 
   return (
-    <div className="p-4 md:p-6 h-full flex flex-col">
+    <div className="p-3 md:p-4 lg:p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Lead
-        </Button>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Pipeline</h1>
+          <p className="text-sm text-muted-foreground">{leads.length} leads</p>
+        </div>
+        {!isMobile && (
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Lead
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid w-full grid-cols-2 mb-4 shrink-0">
+        <TabsList className="grid w-full grid-cols-2 mb-3 md:mb-4 shrink-0">
           <TabsTrigger value="ops" disabled={profile?.pipeline_access === 'sales'}>Operational</TabsTrigger>
           <TabsTrigger value="sales" disabled={profile?.pipeline_access === 'ops'}>Sales</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="flex-1 overflow-hidden">
           {canAccess ? (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <div className="flex gap-4 h-full overflow-x-auto pb-4">
-                {currentStages.map(stage => (
-                  <DroppableColumn 
-                    key={`${stage.pipeline}-${stage.name}`} 
-                    stage={stage} 
-                    leads={getLeadsByStage(stage.name)} 
-                    onCardClick={(id) => setDetailModal({ open: true, leadId: id })}
-                  />
-                ))}
+            isMobile ? (
+              /* Mobile: single column with tab pills */
+              <div className="flex flex-col h-full">
+                {/* Stage pills - horizontally scrollable */}
+                <div className="flex gap-2 overflow-x-auto pb-3 scroll-x-hidden shrink-0">
+                  {currentStages.map(stage => {
+                    const count = getLeadsByStage(stage.name).length;
+                    const isActive = mobileActiveStage === stage.name;
+                    return (
+                      <button
+                        key={stage.name}
+                        onClick={() => setMobileActiveStage(stage.name)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                          isActive 
+                            ? 'bg-[#1a4731] text-white' 
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {stage.label}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          isActive ? 'bg-white/20' : 'bg-border'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Active stage cards */}
+                <div className="flex-1 overflow-y-auto space-y-2">
+                  {mobileActiveStage && getLeadsByStage(mobileActiveStage).map(lead => (
+                    <DraggableCard 
+                      key={lead.id} 
+                      lead={lead} 
+                      onClick={() => setDetailModal({ open: true, leadId: lead.id })} 
+                    />
+                  ))}
+                  {mobileActiveStage && getLeadsByStage(mobileActiveStage).length === 0 && (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm border-2 border-dashed border-border rounded-xl">
+                      No leads in this stage
+                    </div>
+                  )}
+                </div>
               </div>
-            </DndContext>
+            ) : (
+              /* Desktop/Tablet: kanban board with horizontal scroll */
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <div className="flex gap-4 h-full overflow-x-auto pb-4 scroll-touch">
+                  {currentStages.map(stage => (
+                    <DroppableColumn 
+                      key={`${stage.pipeline}-${stage.name}`} 
+                      stage={stage} 
+                      leads={getLeadsByStage(stage.name)} 
+                      onCardClick={(id) => setDetailModal({ open: true, leadId: id })}
+                    />
+                  ))}
+                </div>
+              </DndContext>
+            )
           ) : (
             <div className="flex items-center justify-center h-64">
               <p className="text-muted-foreground">You don't have access to this pipeline.</p>
@@ -309,6 +364,16 @@ export default function Pipeline() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Mobile FAB */}
+      {isMobile && (
+        <button
+          className="fab-button"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
 
       <StatusTransitionDialog
         open={transitionDialog.open}

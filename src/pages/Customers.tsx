@@ -47,10 +47,12 @@ export default function Customers() {
   );
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-foreground">Customers</h1>
-        <Badge variant="outline">{customers.length} total</Badge>
+    <div className="p-3 md:p-6 lg:p-8">
+      <div className="flex items-center justify-between mb-4 md:mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Customers</h1>
+          <Badge variant="outline">{customers.length} total</Badge>
+        </div>
       </div>
 
       <div className="relative mb-4">
@@ -80,7 +82,7 @@ export default function Customers() {
                 setModalOpen(true);
               }}
             >
-              <CardContent className="p-4">
+              <CardContent className="p-3 md:p-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
@@ -94,7 +96,7 @@ export default function Customers() {
                         {customer.customer_type}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 mt-1 text-xs text-muted-foreground">
                       {customer.phone && (
                         <span className="flex items-center gap-1">
                           <Phone className="h-3 w-3" />

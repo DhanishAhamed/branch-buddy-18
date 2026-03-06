@@ -1,7 +1,7 @@
 import * as React from "react";
 
 const MOBILE_BREAKPOINT = 768;
-const TABLET_BREAKPOINT = 1024;
+const TABLET_BREAKPOINT = 1280;
 
 export function useDevice() {
   const [device, setDevice] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
