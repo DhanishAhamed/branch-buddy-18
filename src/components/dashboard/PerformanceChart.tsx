@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts';
 import { ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,7 +26,6 @@ export function PerformanceChart() {
   const fetchLeadData = async () => {
     const days: ChartData[] = [];
     
-    // Get leads created per day for the last 7 days
     for (let i = 6; i >= 0; i--) {
       const date = subDays(new Date(), i);
       const dayStart = startOfDay(date);
@@ -51,7 +48,6 @@ export function PerformanceChart() {
     setChartData(days);
   };
 
-  // Ensure we have data, use placeholder if not
   const displayData = chartData.length > 0 ? chartData : [
     { day: 'Monday', dayShort: 'Mon', value: 0 },
     { day: 'Tuesday', dayShort: 'Tue', value: 0 },
@@ -63,44 +59,53 @@ export function PerformanceChart() {
   ];
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+    <div className="bg-card rounded-2xl border border-border p-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <CardTitle className="text-lg font-semibold">Performance Overview</CardTitle>
-          <p className="text-sm text-muted-foreground">Weekly lead conversion and inquiries</p>
+          <h3 className="text-[15px] font-bold text-foreground">Performance Overview</h3>
+          <p className="text-[11.5px] text-muted-foreground mt-0.5">Weekly lead conversion and inquiries</p>
         </div>
-        <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+        <button className="flex items-center gap-1.5 bg-muted rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-foreground hover:bg-border transition-colors">
           {period}
           <ChevronDown className="h-3 w-3" />
-        </Button>
-      </CardHeader>
-      <CardContent className="pt-4">
-        <div className="h-[240px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={displayData} barCategoryGap="20%">
-              <XAxis 
-                dataKey="dayShort" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <YAxis hide />
-              <Bar 
-                dataKey="value" 
-                radius={[6, 6, 0, 0]}
-                maxBarSize={50}
-              >
-                {displayData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.dayShort === today ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.3)'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        </button>
+      </div>
+      <div className="h-[180px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={displayData} barCategoryGap="20%">
+            <XAxis 
+              dataKey="dayShort" 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <YAxis hide />
+            <Bar 
+              dataKey="value" 
+              radius={[6, 6, 0, 0]}
+              maxBarSize={50}
+            >
+              {displayData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.dayShort === today ? 'hsl(var(--green-dark))' : 'hsl(var(--green-pale))'}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      {/* Legend */}
+      <div className="flex gap-4 mt-3">
+        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <span className="w-2.5 h-2.5 rounded-sm bg-[hsl(var(--green-dark))] inline-block" />
+          Leads
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <span className="w-2.5 h-2.5 rounded-sm bg-[hsl(var(--green-pale))] inline-block" />
+          Inquiries
+        </div>
+      </div>
+    </div>
   );
 }

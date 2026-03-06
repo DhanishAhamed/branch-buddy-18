@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
 
 interface Lead {
   id: string;
   name: string;
   status: string;
   source: string | null;
+  created_at: string;
   property: {
     title: string;
   } | null;
@@ -34,82 +33,90 @@ export function RecentLeads() {
         name,
         status,
         source,
+        created_at,
         property:properties(title)
       `)
       .eq('assigned_to', user?.id)
       .order('created_at', { ascending: false })
-      .limit(4);
+      .limit(5);
 
     if (data) {
       setLeads(data as Lead[]);
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusDot = (status: string) => {
     switch (status) {
       case 'new':
-        return <Badge className="bg-primary/15 text-primary hover:bg-primary/20 border-0">New</Badge>;
+        return { color: 'bg-[hsl(var(--green-accent))]', label: 'New' };
+      case 'need_followup':
       case 'contacted':
-      case 'qualified':
-        return <Badge className="bg-accent text-accent-foreground hover:bg-accent/80 border-0">Active</Badge>;
+        return { color: 'bg-[hsl(var(--warning))]', label: 'Follow-up' };
+      case 'site_visit_scheduled':
+        return { color: 'bg-blue-500', label: 'Visit' };
       case 'negotiating':
-        return <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-0">Negotiating</Badge>;
+        return { color: 'bg-[hsl(var(--warning))]', label: 'Negotiating' };
+      case 'qualified':
+        return { color: 'bg-[hsl(var(--green-light))]', label: 'Qualified' };
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return { color: 'bg-muted-foreground', label: status };
     }
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
-    <Card className="border-border/50">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-lg font-semibold">Recent Leads</CardTitle>
-        <Link to="/leads" className="text-sm font-medium text-primary hover:underline">
-          View All
+    <div className="bg-card rounded-2xl border border-border p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-[15px] font-bold text-foreground">Recent Leads</h3>
+          <p className="text-[11.5px] text-muted-foreground mt-0.5">Latest inquiries and contacts</p>
+        </div>
+        <Link to="/leads" className="text-[12.5px] font-semibold text-[hsl(var(--green-accent))] hover:text-[hsl(var(--green-dark))] transition-colors">
+          View All →
         </Link>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {leads.length === 0 ? (
-          <p className="text-center text-muted-foreground py-6 text-sm">
-            No recent leads
-          </p>
-        ) : (
-          leads.map((lead) => (
-            <div
-              key={lead.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9 bg-primary/15">
-                  <AvatarFallback className="text-xs font-medium text-primary bg-primary/15">
-                    {getInitials(lead.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium text-foreground text-sm">{lead.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {lead.property?.title 
-                      ? `Interested in: ${lead.property.title}`
-                      : lead.source 
-                        ? `Contacted via: ${lead.source}`
-                        : 'New inquiry'
-                    }
-                  </p>
-                </div>
-              </div>
-              {getStatusBadge(lead.status)}
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {leads.length === 0 ? (
+        <div className="text-center py-6 text-muted-foreground text-[13px]">
+          No recent leads
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] pb-2 border-b border-border">Name</th>
+                <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] pb-2 border-b border-border">Type</th>
+                <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] pb-2 border-b border-border">Status</th>
+                <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] pb-2 border-b border-border">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leads.map((lead) => {
+                const statusInfo = getStatusDot(lead.status);
+                return (
+                  <tr key={lead.id} className="hover:bg-muted/50 transition-colors cursor-pointer border-b border-muted/30 last:border-0">
+                    <td className="py-2.5 text-[13px]">
+                      <span className="font-semibold text-foreground">{lead.name}</span>
+                    </td>
+                    <td className="py-2.5 text-[11px] text-muted-foreground">
+                      {lead.source || 'Direct'}
+                    </td>
+                    <td className="py-2.5">
+                      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium">
+                        <span className={`w-[7px] h-[7px] rounded-full ${statusInfo.color}`} />
+                        {statusInfo.label}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-[11px] text-muted-foreground">
+                      {format(new Date(lead.created_at), 'MMM d')}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
