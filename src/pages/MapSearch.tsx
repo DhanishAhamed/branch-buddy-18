@@ -461,7 +461,7 @@ export default function MapSearch() {
       </div>
 
       {/* Right Side - Property Cards */}
-      <div className="w-full md:w-1/2 lg:w-3/5 h-full min-h-0 overflow-y-auto border-l border-border bg-muted/30">
+      <div className="w-full md:w-1/2 lg:w-3/5 min-h-0 overflow-y-auto border-t md:border-t-0 md:border-l border-border bg-muted/30 md:h-full">
         <div className="p-4 space-y-4">
           <h2 className="font-semibold text-lg text-foreground flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
