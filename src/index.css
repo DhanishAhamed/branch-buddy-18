@@ -134,3 +134,138 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Global touch & safe area rules */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+/* iOS momentum scroll */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Wrap hover-only styles for non-touch */
+@media (hover: hover) {
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* Safe area padding utilities */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mb-safe {
+  margin-bottom: calc(env(safe-area-inset-bottom) + 16px);
+}
+
+/* Mobile sidebar overlay */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.sidebar-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile sidebar slide-in */
+.mobile-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 270px;
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  background: hsl(var(--sidebar-background));
+  border-right: 1px solid hsl(var(--border));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.mobile-sidebar.open {
+  transform: translateX(0);
+}
+
+/* Ensure minimum touch targets */
+@media (max-width: 767px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent iOS zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* FAB styles */
+.fab-button {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 80px);
+  right: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #1a4731;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(26, 71, 49, 0.35);
+  z-index: 40;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+@media (hover: hover) {
+  .fab-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(26, 71, 49, 0.45);
+  }
+}
+
+/* Bottom sheet modal on mobile */
+@media (max-width: 767px) {
+  [data-state="open"][role="dialog"] {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    max-height: 92vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    transform: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+}
+
+/* Horizontal scroll without scrollbar */
+.scroll-x-hidden::-webkit-scrollbar {
+  display: none;
+}
+.scroll-x-hidden {
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
