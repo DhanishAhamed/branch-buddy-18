@@ -196,8 +196,8 @@ export default function Properties() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-start sm:items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
+      <div className="space-y-3">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by title or address..."
@@ -207,64 +207,67 @@ export default function Properties() {
           />
         </div>
 
-        <Select value={portalFilter} onValueChange={setPortalFilter}>
-          <SelectTrigger className="w-[140px] rounded-[10px] border-border bg-card">
-            <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-            <SelectValue placeholder="Portal" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Portals</SelectItem>
-            <SelectItem value="residential">Residential</SelectItem>
-            <SelectItem value="commercial">Commercial</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2 overflow-x-auto scroll-x-hidden pb-1 items-center">
+          <Select value={portalFilter} onValueChange={setPortalFilter}>
+            <SelectTrigger className="w-[130px] md:w-[140px] rounded-[10px] border-border bg-card shrink-0">
+              <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Portal" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Portals</SelectItem>
+              <SelectItem value="residential">Residential</SelectItem>
+              <SelectItem value="commercial">Commercial</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={propertyTypeFilter} onValueChange={setPropertyTypeFilter}>
-          <SelectTrigger className="w-[160px] rounded-[10px] border-border bg-card">
-            <SelectValue placeholder="Property Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {propertyTypes.map(pt => (
-              <SelectItem key={pt.id} value={pt.id}>{pt.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={propertyTypeFilter} onValueChange={setPropertyTypeFilter}>
+            <SelectTrigger className="w-[140px] md:w-[160px] rounded-[10px] border-border bg-card shrink-0">
+              <SelectValue placeholder="Property Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {propertyTypes.map(pt => (
+                <SelectItem key={pt.id} value={pt.id}>{pt.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px] rounded-[10px] border-border bg-card">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="available">Available</SelectItem>
-            <SelectItem value="under_offer">Under Offer</SelectItem>
-            <SelectItem value="off_market">Off Market</SelectItem>
-            <SelectItem value="sold">Sold</SelectItem>
-            <SelectItem value="rented">Rented</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[130px] md:w-[140px] rounded-[10px] border-border bg-card shrink-0">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="under_offer">Under Offer</SelectItem>
+              <SelectItem value="off_market">Off Market</SelectItem>
+              <SelectItem value="sold">Sold</SelectItem>
+              <SelectItem value="rented">Rented</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-          <SelectTrigger className="w-[150px] rounded-[10px] border-border bg-card">
-            <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">Newest First</SelectItem>
-            <SelectItem value="oldest">Oldest First</SelectItem>
-            <SelectItem value="price_high">Price: High→Low</SelectItem>
-            <SelectItem value="price_low">Price: Low→High</SelectItem>
-            <SelectItem value="name_az">Name: A→Z</SelectItem>
-            <SelectItem value="name_za">Name: Z→A</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <SelectTrigger className="w-[140px] md:w-[150px] rounded-[10px] border-border bg-card shrink-0">
+              <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="price_high">Price: High→Low</SelectItem>
+              <SelectItem value="price_low">Price: Low→High</SelectItem>
+              <SelectItem value="name_az">Name: A→Z</SelectItem>
+              <SelectItem value="name_za">Name: Z→A</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <div className="flex items-center gap-3 ml-auto">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Switch checked={showSold} onCheckedChange={setShowSold} id="show-sold" />
-            <Label htmlFor="show-sold" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">Show Sold/Rented</Label>
+            <Label htmlFor="show-sold" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">Sold/Rented</Label>
           </div>
+        </div>
+
+        <div className="flex items-center justify-end">
           <div className="flex items-center rounded-lg border border-border overflow-hidden">
             <button
               onClick={() => setViewMode('grid')}
