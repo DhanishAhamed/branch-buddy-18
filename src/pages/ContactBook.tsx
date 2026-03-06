@@ -215,7 +215,7 @@ export default function ContactBook() {
 
       {!selectedFolder ? (
         /* Folder Grid */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {folders.length === 0 ? (
             <div className="col-span-full text-center py-16 text-muted-foreground">
               <FolderOpen className="h-16 w-16 mx-auto mb-4 opacity-30" />

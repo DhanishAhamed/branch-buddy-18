@@ -330,7 +330,7 @@ export default function Properties() {
                 onClick={() => setSelectedProperty(property)}
               >
                 {/* Image */}
-                <div className={`relative h-[180px] overflow-hidden ${isSoldOrRented ? 'grayscale' : ''}`} style={{ background: '#f1f4f6' }}>
+                <div className={`relative h-[160px] md:h-[180px] overflow-hidden ${isSoldOrRented ? 'grayscale' : ''}`} style={{ background: '#f1f4f6' }}>
                   {firstImage ? (
                     <img
                       src={firstImage}

@@ -96,7 +96,7 @@ export default function Customers() {
                         {customer.customer_type}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 mt-1 text-xs text-muted-foreground">
                       {customer.phone && (
                         <span className="flex items-center gap-1">
                           <Phone className="h-3 w-3" />

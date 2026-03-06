@@ -480,7 +480,7 @@ export default function MapSearch() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               {filteredProperties.map((property) => (
                 <Card
                   key={property.id}
