@@ -446,7 +446,7 @@ export default function MapSearch() {
         </Card>
 
         {/* Map */}
-        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border min-h-0 relative">
+        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border relative" style={{ minHeight: '280px' }}>
           {mapLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <div className="animate-pulse text-muted-foreground">Loading map...</div>
