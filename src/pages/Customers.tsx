@@ -82,7 +82,7 @@ export default function Customers() {
                 setModalOpen(true);
               }}
             >
-              <CardContent className="p-4">
+              <CardContent className="p-3 md:p-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
