@@ -54,36 +54,6 @@ export default function Dashboard() {
       {/* Dashboard Header with New Lead Button */}
       <DashboardHeader onLeadAdded={handleLeadAdded} />
 
-      {/* Welcome Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 p-4 sm:p-6 md:p-8 text-primary-foreground">
-        {/* Decorative wave pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
-            <path d="M0,100 C200,150 400,50 600,100 C800,150 800,100 800,100 L800,200 L0,200 Z" fill="white" opacity="0.1"/>
-            <path d="M0,120 C150,170 350,70 550,120 C750,170 800,120 800,120 L800,200 L0,200 Z" fill="white" opacity="0.1"/>
-            <path d="M0,140 C100,190 300,90 500,140 C700,190 800,140 800,140 L800,200 L0,200 Z" fill="white" opacity="0.1"/>
-          </svg>
-        </div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-primary-foreground/90 mb-2">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-medium">{greeting}</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
-            Welcome back, {firstName}! 👋
-          </h1>
-          <p className="text-primary-foreground/85 max-w-xl text-sm sm:text-base">
-            Here's what's happening with your properties and leads today. You have{' '}
-            <Link to="/leads" className="underline font-semibold hover:text-primary-foreground">
-              {newInquiries} new {newInquiries === 1 ? 'inquiry' : 'inquiries'}
-            </Link>{' '}
-            waiting for your attention. Let's make it a productive day!
-          </p>
-        </div>
-        <div className="absolute -bottom-8 -right-8 opacity-10">
-          <Building2 className="h-32 w-32 sm:h-40 sm:w-40" />
-        </div>
-      </div>
 
       {/* KPI Cards */}
       <SwipeableKPICards key={`kpi-${refreshKey}`} />
