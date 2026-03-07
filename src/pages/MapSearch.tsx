@@ -90,6 +90,8 @@ export default function MapSearch() {
       map.on("load", () => {
         setMapLoading(false);
         mapRef.current = map;
+        // Force resize after layout settles on mobile
+        setTimeout(() => map.resize(), 100);
 
         // Add radius circle source and layers
         map.addSource("radius-circle", {
