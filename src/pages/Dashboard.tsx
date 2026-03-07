@@ -10,6 +10,7 @@ import { LeadSourcesPanel } from '@/components/dashboard/LeadSourcesPanel';
 import { SiteVisitReminder } from '@/components/dashboard/SiteVisitReminder';
 import { AgentLeaderboard } from '@/components/dashboard/AgentLeaderboard';
 import { PropertyHotlist } from '@/components/dashboard/PropertyHotlist';
+import { TeamPerformanceCard } from '@/components/dashboard/TeamPerformanceCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { WorkspaceSwitcher } from '@/components/layout/WorkspaceSwitcher';
