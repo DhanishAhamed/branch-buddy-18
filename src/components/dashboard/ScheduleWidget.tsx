@@ -129,9 +129,9 @@ export function ScheduleWidget() {
   };
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 h-full flex flex-col">
+    <div className="dashboard-card h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+        <h3 style={{ fontSize: 14, fontWeight: 700 }} className="text-foreground">
           📅 Schedule
         </h3>
         <button onClick={() => navigate('/calendar')} className="text-muted-foreground hover:text-foreground">
@@ -147,22 +147,24 @@ export function ScheduleWidget() {
         <div className="flex flex-1 gap-1.5">
           {visibleDates.map((date) => {
             const isSelected = isSameDay(date, selectedDate);
-            const isToday = isSameDay(date, new Date());
             const hasEvent = hasEventOnDate(date);
             return (
               <button
                 key={date.toISOString()}
                 onClick={() => setSelectedDate(date)}
-                className={`relative flex-1 flex flex-col items-center py-2 rounded-[10px] transition-all text-[11px] font-medium ${
-                  isSelected
-                    ? 'bg-[hsl(var(--green-dark))] text-white font-bold'
-                    : 'bg-muted text-muted-foreground hover:bg-border'
-                }`}
+                className="relative flex-1 flex flex-col items-center py-2 transition-all"
+                style={{
+                  borderRadius: 10,
+                  background: isSelected ? '#1a4731' : '#f1f4f6',
+                  color: isSelected ? '#fff' : '#94a3b8',
+                  fontWeight: isSelected ? 700 : 500,
+                  fontSize: 11,
+                }}
               >
                 <span>{format(date, 'MMM')}</span>
                 <span className="text-sm font-bold mt-0.5">{format(date, 'd')}</span>
                 {hasEvent && !isSelected && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-[hsl(var(--green-accent))]" />
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full" style={{ background: '#40916c' }} />
                 )}
               </button>
             );
@@ -175,13 +177,10 @@ export function ScheduleWidget() {
 
       {/* Events for selected day */}
       <div className="flex-1 min-h-[80px]">
-        <p className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase mb-2">
-          {isSameDay(selectedDate, new Date()) ? "Today's Schedule" : format(selectedDate, 'MMM d, yyyy')}
-        </p>
         {events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-4 text-center">
-            <CheckCircle2 className="h-8 w-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs text-muted-foreground">No events scheduled</p>
+            <CheckCircle2 className="h-8 w-8 mb-2" style={{ opacity: 0.25, color: '#94a3b8' }} />
+            <p style={{ fontSize: 11.5, color: '#94a3b8' }}>No events scheduled today</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -215,7 +214,8 @@ export function ScheduleWidget() {
       {/* View Calendar Button */}
       <button
         onClick={() => navigate('/calendar')}
-        className="w-full mt-3 py-2.5 rounded-[10px] border border-border bg-card text-[12.5px] font-semibold text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5"
+        className="w-full mt-3 py-2.5 flex items-center justify-center gap-1.5 text-foreground hover:bg-muted transition-colors"
+        style={{ borderRadius: 8, border: '1px solid #e2e8ed', background: '#fff', fontSize: 12, fontWeight: 600 }}
       >
         <Calendar className="h-3.5 w-3.5" />
         View Full Calendar
@@ -226,8 +226,8 @@ export function ScheduleWidget() {
         <div className="pt-3 mt-3 border-t border-border">
           <p className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase mb-2">Upcoming Next</p>
           <div className="flex items-start gap-3">
-            <div className="flex flex-col items-center bg-muted rounded-lg px-2 py-1.5 min-w-[40px]">
-              <span className="text-[10px] uppercase text-muted-foreground">{format(new Date(upcomingEvent.scheduled_at), 'MMM')}</span>
+            <div className="flex flex-col items-center rounded-lg px-2 py-1.5 min-w-[40px]" style={{ background: '#f1f4f6' }}>
+              <span style={{ fontSize: 10, color: '#94a3b8' }} className="uppercase">{format(new Date(upcomingEvent.scheduled_at), 'MMM')}</span>
               <span className="text-lg font-bold text-foreground">{format(new Date(upcomingEvent.scheduled_at), 'd')}</span>
             </div>
             <div className="flex-1 min-w-0">

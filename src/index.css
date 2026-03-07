@@ -269,3 +269,31 @@ body {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
+
+/* Dashboard card shared style */
+.dashboard-card {
+  background: hsl(var(--card));
+  border-radius: 14px;
+  border: 1px solid #e2e8ed;
+  padding: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.07);
+}
+
+/* Dashboard row fade-up animation */
+@keyframes dashFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.dashboard-row {
+  animation: dashFadeUp 0.3s ease both;
+}

@@ -43,7 +43,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-3 md:p-5 lg:p-7 space-y-4 md:space-y-5">
+    <div className="p-5 md:px-6 space-y-3.5">
       {/* Mobile Workspace Switcher */}
       {isMobile && (
         <div className="flex items-center justify-between">
@@ -54,46 +54,41 @@ export default function Dashboard() {
       {/* Dashboard Header */}
       <DashboardHeader onLeadAdded={handleLeadAdded} />
 
-      {/* KPI Cards - responsive grid */}
-      <SwipeableKPICards key={`kpi-${refreshKey}`} />
+      {/* ROW 1 — Stat Cards */}
+      <div className="dashboard-row" style={{ animationDelay: '0s' }}>
+        <SwipeableKPICards key={`kpi-${refreshKey}`} />
+      </div>
 
-      {/* Team Performance Overview */}
-      <TeamPerformanceCard refreshKey={refreshKey} />
-
-      {/* Middle Row: responsive stacking */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_260px] gap-4">
-        {/* Performance Chart - full width on mobile/tablet */}
-        <div className="col-span-1 lg:col-span-1">
+      {/* ROW 2 — Performance Overview + Team Performance */}
+      <div className="dashboard-row grid grid-cols-1 lg:grid-cols-2 gap-3.5" style={{ animationDelay: '0.08s' }}>
+        <div className="flex flex-col">
           <PerformanceChart key={`chart-${refreshKey}`} />
         </div>
-        
-        {/* Reminder + Lead Sources - side by side on tablet, stacked on mobile */}
-        <div className="flex flex-col sm:flex-row lg:flex-col gap-4">
-          <div className="flex-1">
-            <SiteVisitReminder />
-          </div>
-          <div className="flex-1">
-            <LeadSourcesPanel />
-          </div>
+        <div className="flex flex-col">
+          <TeamPerformanceCard refreshKey={refreshKey} />
         </div>
+      </div>
 
-        {/* Schedule */}
-        <div className="col-span-1">
+      {/* ROW 3 — Lead Sources + Site Visit/Followup + Schedule */}
+      <div
+        className="dashboard-row grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5"
+        style={{ animationDelay: '0.16s' }}
+      >
+        <LeadSourcesPanel />
+        <SiteVisitReminder />
+        <div className="md:col-span-2 lg:col-span-1">
           <ScheduleWidget />
         </div>
       </div>
 
-      {/* Bottom Row: responsive stacking */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_1fr] gap-4">
-        <div className="col-span-1 lg:col-span-1 order-1">
-          <RecentLeads key={`leads-${refreshKey}`} />
-        </div>
-        <div className="col-span-1 sm:col-span-1 order-3 lg:order-2">
-          <AgentLeaderboard />
-        </div>
-        <div className="col-span-1 sm:col-span-1 order-2 lg:order-3">
-          <PropertyHotlist />
-        </div>
+      {/* ROW 4 — Recent Leads + Agent Leaderboard + Property Hotlist */}
+      <div
+        className="dashboard-row grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr] gap-3.5"
+        style={{ animationDelay: '0.24s' }}
+      >
+        <RecentLeads key={`leads-${refreshKey}`} />
+        <AgentLeaderboard />
+        <PropertyHotlist />
       </div>
     </div>
   );
