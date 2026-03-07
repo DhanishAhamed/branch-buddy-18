@@ -50,9 +50,7 @@ export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownP
     {
       label: 'Create Task',
       icon: FileText,
-      onClick: () => {
-        window.location.href = '/dashboard';
-      },
+      onClick: () => setAddTaskOpen(true),
       description: 'Add a new task',
     },
   ];
