@@ -20,6 +20,7 @@ interface QuickActionsDropdownProps {
 export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownProps) {
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addPropertyOpen, setAddPropertyOpen] = useState(false);
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
 
   const handleActionSuccess = () => {
     onActionComplete?.();
