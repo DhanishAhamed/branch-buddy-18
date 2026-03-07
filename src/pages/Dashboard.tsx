@@ -57,6 +57,9 @@ export default function Dashboard() {
       {/* KPI Cards - responsive grid */}
       <SwipeableKPICards key={`kpi-${refreshKey}`} />
 
+      {/* Team Performance Overview */}
+      <TeamPerformanceCard refreshKey={refreshKey} />
+
       {/* Middle Row: responsive stacking */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_260px] gap-4">
         {/* Performance Chart - full width on mobile/tablet */}
