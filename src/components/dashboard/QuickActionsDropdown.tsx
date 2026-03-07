@@ -98,6 +98,12 @@ export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownP
         onOpenChange={setAddPropertyOpen}
         onSuccess={handleActionSuccess}
       />
+
+      <AddTaskDialog
+        open={addTaskOpen}
+        onOpenChange={setAddTaskOpen}
+        onSuccess={handleActionSuccess}
+      />
     </>
   );
 }
