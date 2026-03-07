@@ -370,12 +370,12 @@ export default function MapSearch() {
 
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] min-h-0">
+    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] min-h-0 overflow-x-hidden w-full max-w-[100vw]">
       {/* Left Side - Map & Filters */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col min-h-0 md:h-full">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col min-h-0 md:h-full overflow-x-hidden">
         {/* Filters */}
-        <Card className="m-4 mb-0 border-border relative z-[1000]">
-          <CardContent className="p-4 space-y-4">
+        <Card className="mx-3 md:mx-4 mt-3 md:mt-4 mb-0 border-border relative z-[1000] rounded-xl">
+          <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
             {/* Place Search */}
             <div ref={searchRef} className="relative">
               <div className="relative">
@@ -384,7 +384,7 @@ export default function MapSearch() {
                   placeholder="Search for a place..."
                   value={searchQuery}
                   onChange={(e) => handleSearchInput(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11 md:h-10 text-base md:text-sm"
                 />
                 {isSearching && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
@@ -416,9 +416,9 @@ export default function MapSearch() {
               <Slider value={radius} onValueChange={setRadius} min={1} max={50} step={1} className="w-full" />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2 md:gap-3">
               <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 h-10">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -430,7 +430,7 @@ export default function MapSearch() {
               </Select>
 
               <Select value={priceRange} onValueChange={setPriceRange}>
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 h-10">
                   <SelectValue placeholder="Price" />
                 </SelectTrigger>
                 <SelectContent>
@@ -446,16 +446,19 @@ export default function MapSearch() {
         </Card>
 
         {/* Map */}
-        <div className="flex-1 m-4 rounded-xl overflow-hidden border border-border relative" style={{ minHeight: '280px' }}>
+        <div
+          className="mx-3 md:mx-4 mt-3 md:mt-4 rounded-xl overflow-hidden border border-border relative md:flex-1"
+          style={{ height: '280px', minHeight: '280px' }}
+        >
           {mapLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <div className="animate-pulse text-muted-foreground">Loading map...</div>
             </div>
           )}
-          <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
+          <div ref={mapContainerRef} className="w-full h-full [&_.maplibregl-ctrl-top-right]:!right-3 [&_.maplibregl-ctrl-top-right]:!top-3" />
         </div>
 
-        <p className="text-center text-sm text-muted-foreground pb-4">
+        <p className="text-center text-sm text-muted-foreground py-3 md:pb-4">
           <span className="font-semibold text-primary">{filteredProperties.length}</span> properties found
         </p>
       </div>
