@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
+import { AddTaskDialog } from '@/components/tasks/AddTaskDialog';
 
 interface QuickActionsDropdownProps {
   onActionComplete?: () => void;
@@ -19,6 +20,7 @@ interface QuickActionsDropdownProps {
 export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownProps) {
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addPropertyOpen, setAddPropertyOpen] = useState(false);
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
 
   const handleActionSuccess = () => {
     onActionComplete?.();
@@ -48,9 +50,7 @@ export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownP
     {
       label: 'Create Task',
       icon: FileText,
-      onClick: () => {
-        window.location.href = '/dashboard';
-      },
+      onClick: () => setAddTaskOpen(true),
       description: 'Add a new task',
     },
   ];
@@ -96,6 +96,12 @@ export function QuickActionsDropdown({ onActionComplete }: QuickActionsDropdownP
       <AddPropertyDialog
         open={addPropertyOpen}
         onOpenChange={setAddPropertyOpen}
+        onSuccess={handleActionSuccess}
+      />
+
+      <AddTaskDialog
+        open={addTaskOpen}
+        onOpenChange={setAddTaskOpen}
         onSuccess={handleActionSuccess}
       />
     </>
