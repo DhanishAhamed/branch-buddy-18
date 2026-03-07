@@ -82,7 +82,6 @@ export function SwipeableKPICards() {
       .eq('is_completed', false)
       .lt('scheduled_at', new Date().toISOString());
 
-    // Pipeline value - count negotiating leads
     const { count: activeDeals } = await supabase
       .from('leads')
       .select('*', { count: 'exact', head: true })
@@ -121,16 +120,16 @@ export function SwipeableKPICards() {
       isDark: false,
       pill: 'On Track',
       pillType: 'green' as const,
-      subtitle: `${kpis.completedVisits} completed, ${kpis.remainingVisits} remaining`,
+      subtitle: `${kpis.completedVisits} done, ${kpis.remainingVisits} left`,
       route: '/calendar',
     },
     {
       title: 'Pending Follow-ups',
       value: kpis.pendingFollowups.toString().padStart(2, '0'),
       isDark: false,
-      pill: kpis.pendingFollowups > 0 ? 'Attention Required' : 'All Clear',
+      pill: kpis.pendingFollowups > 0 ? 'Overdue 2+ days' : 'All Clear',
       pillType: kpis.pendingFollowups > 0 ? 'red' as const : 'green' as const,
-      subtitle: kpis.pendingFollowups > 0 ? 'Overdue by 2+ days' : 'All caught up',
+      subtitle: kpis.pendingFollowups > 0 ? 'Needs attention' : 'All caught up',
       route: '/calendar',
     },
     {
@@ -139,16 +138,16 @@ export function SwipeableKPICards() {
       isDark: false,
       pill: 'On Discuss',
       pillType: 'amber' as const,
-      subtitle: `${kpis.activeDeals} active deals`,
+      subtitle: `${kpis.activeDeals} deals`,
       route: '/pipeline',
     },
   ];
 
-  const pillClasses = {
-    white: 'bg-white/20 text-white',
-    green: 'bg-[hsl(var(--green-pale))] text-[hsl(var(--green-dark))]',
-    red: 'bg-destructive/10 text-destructive',
-    amber: 'bg-[hsl(43_96%_90%)] text-[hsl(26_60%_30%)]',
+  const pillStyles: Record<string, { bg: string; color: string }> = {
+    white: { bg: 'rgba(255,255,255,0.2)', color: '#fff' },
+    green: { bg: '#d8f3dc', color: '#1a4731' },
+    red: { bg: '#fee2e2', color: '#dc2626' },
+    amber: { bg: '#fef3c7', color: '#92400e' },
   };
 
   const scrollToCard = (index: number) => {
@@ -171,28 +170,46 @@ export function SwipeableKPICards() {
     <div
       key={card.title}
       onClick={() => navigate(card.route)}
-      className={`relative rounded-2xl p-5 border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
-        card.isDark
-          ? 'bg-[hsl(var(--green-dark))] border-[hsl(var(--green-dark))] text-white'
-          : 'bg-card border-border text-foreground'
-      }`}
+      className="relative cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
+      style={{
+        padding: 16,
+        borderRadius: 14,
+        border: card.isDark ? 'none' : '1px solid #e2e8ed',
+        background: card.isDark ? '#1a4731' : '#fff',
+        color: card.isDark ? '#fff' : undefined,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      }}
     >
-      {/* Arrow link */}
-      <div className={`absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center ${
-        card.isDark ? 'bg-white/15' : 'bg-muted'
-      }`}>
-        <ArrowUpRight className={`h-3.5 w-3.5 ${card.isDark ? 'text-white' : 'text-muted-foreground'}`} />
+      {/* Arrow icon */}
+      <div
+        className="absolute top-3.5 right-3.5 flex items-center justify-center"
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          background: card.isDark ? 'rgba(255,255,255,0.15)' : '#f1f4f6',
+        }}
+      >
+        <ArrowUpRight style={{ width: 13, height: 13, color: card.isDark ? '#fff' : '#94a3b8' }} />
       </div>
 
-      <p className={`text-[12px] font-medium mb-2 ${card.isDark ? 'text-white/65' : 'text-muted-foreground'}`}>
+      <p style={{ fontSize: 12, fontWeight: 500, opacity: card.isDark ? 0.65 : 1, color: card.isDark ? '#fff' : '#94a3b8', marginBottom: 8 }}>
         {card.title}
       </p>
-      <p className={`text-[36px] font-extrabold leading-none mb-2 ${card.title === 'Pipeline Value' ? 'text-[28px]' : ''}`}>
+      <p style={{ fontSize: card.title === 'Pipeline Value' ? 28 : 32, fontWeight: 800, lineHeight: 1, marginBottom: 8 }} className={card.isDark ? '' : 'text-foreground'}>
         {card.value}
       </p>
-      <div className={`flex items-center gap-1.5 text-[11.5px] ${card.isDark ? 'text-white/60' : 'text-muted-foreground'}`}>
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${pillClasses[card.pillType]}`}>
-          {card.pillType === 'white' && leadPercentChange >= 0 && <TrendingUp className="h-3 w-3" />}
+      <div className="flex items-center gap-1.5" style={{ fontSize: 11, color: card.isDark ? 'rgba(255,255,255,0.6)' : '#94a3b8' }}>
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
+          style={{
+            fontSize: 10.5,
+            fontWeight: 600,
+            background: pillStyles[card.pillType].bg,
+            color: pillStyles[card.pillType].color,
+          }}
+        >
+          {card.pillType === 'white' && leadPercentChange >= 0 && <TrendingUp style={{ width: 12, height: 12 }} />}
           {card.pill}
         </span>
         {card.subtitle}
@@ -206,7 +223,7 @@ export function SwipeableKPICards() {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 gap-4"
+          className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 gap-3.5"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {cards.map((card, index) => (
@@ -215,14 +232,13 @@ export function SwipeableKPICards() {
             </div>
           ))}
         </div>
-        <div className="flex justify-center gap-2 mt-4">
+        <div className="flex justify-center gap-2 mt-3">
           {cards.map((_, index) => (
             <button
               key={index}
               onClick={() => scrollToCard(index)}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                currentIndex === index ? 'bg-primary' : 'bg-muted'
-              }`}
+              className="w-2 h-2 rounded-full transition-colors"
+              style={{ background: currentIndex === index ? '#1a4731' : '#e2e8ed' }}
             />
           ))}
         </div>
@@ -231,7 +247,7 @@ export function SwipeableKPICards() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
       {cards.map((card, index) => renderCard(card, index))}
     </div>
   );

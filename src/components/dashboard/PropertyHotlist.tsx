@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus } from 'lucide-react';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
+import { Link } from 'react-router-dom';
 
 interface HotProperty {
   id: string;
@@ -22,7 +23,6 @@ export function PropertyHotlist() {
   }, [profile]);
 
   const fetchProperties = async () => {
-    // Get properties with their lead inquiry count
     const { data: props } = await supabase
       .from('properties')
       .select('id, title, address, price')
@@ -64,47 +64,54 @@ export function PropertyHotlist() {
 
   return (
     <>
-      <div className="bg-card rounded-2xl border border-border p-5">
+      <div className="dashboard-card h-full flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-[15px] font-bold text-foreground">Property Hotlist</h3>
-            <p className="text-[11.5px] text-muted-foreground mt-0.5">Top properties by inquiries</p>
+            <h3 style={{ fontSize: 14, fontWeight: 700 }} className="text-foreground">🔥 Property Hotlist</h3>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Most inquired this week</p>
           </div>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1 text-[12px] font-semibold text-[hsl(var(--green-accent))] hover:text-[hsl(var(--green-dark))] transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Property
-          </button>
+          <Link to="/properties" className="text-[11px] font-semibold" style={{ color: '#40916c' }}>
+            View All →
+          </Link>
         </div>
 
         {properties.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground text-[12px]">
+          <div className="flex-1 flex items-center justify-center" style={{ color: '#94a3b8', fontSize: 12 }}>
             No properties yet
           </div>
         ) : (
-          <div>
+          <div className="flex-1">
             {properties.map((prop, idx) => (
               <div
                 key={prop.id}
-                className="flex gap-2.5 py-2.5 border-b border-muted/30 last:border-0 cursor-pointer hover:opacity-75 transition-opacity"
+                className="flex gap-2.5 cursor-pointer hover:opacity-75 transition-opacity"
+                style={{ padding: '8px 0', borderBottom: '1px solid #f8fafb' }}
               >
-                <div className="w-[52px] h-[44px] rounded-lg bg-[hsl(var(--green-pale))] flex items-center justify-center text-xl shrink-0">
+                <div className="shrink-0 flex items-center justify-center text-xl" style={{ width: 44, height: 38, background: '#d8f3dc', borderRadius: 7 }}>
                   {propertyEmojis[idx] || '🏠'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground truncate">{prop.title}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{prop.address || 'No address'}</p>
+                  <p style={{ fontSize: 12.5, fontWeight: 700 }} className="text-foreground truncate">{prop.title}</p>
+                  <p style={{ fontSize: 10.5, color: '#94a3b8' }} className="truncate">
+                    {prop.address || 'Property'} · {prop.inquiryCount} inquiries
+                  </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-[13px] font-bold text-[hsl(var(--green-dark))]">{formatPrice(prop.price)}</p>
-                  <p className="text-[10px] text-muted-foreground">{prop.inquiryCount} inquiries</p>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#1a4731' }}>{formatPrice(prop.price)}</p>
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        <button
+          onClick={() => setAddOpen(true)}
+          className="w-full mt-3 flex items-center justify-center gap-1.5 py-2"
+          style={{ border: '1px dashed #e2e8ed', background: '#f8fafb', borderRadius: 8, color: '#40916c', fontSize: 12, fontWeight: 600 }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add Property
+        </button>
       </div>
 
       <AddPropertyDialog

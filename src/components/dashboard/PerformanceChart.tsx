@@ -59,36 +59,36 @@ export function PerformanceChart() {
   ];
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
+    <div className="dashboard-card flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-[15px] font-bold text-foreground">Performance Overview</h3>
-          <p className="text-[11.5px] text-muted-foreground mt-0.5">Weekly lead conversion and inquiries</p>
+          <h3 style={{ fontSize: 14, fontWeight: 700 }} className="text-foreground">Performance Overview</h3>
+          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Weekly lead conversion & inquiries</p>
         </div>
-        <button className="flex items-center gap-1.5 bg-muted rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-foreground hover:bg-border transition-colors">
+        <button className="flex items-center gap-1 bg-[#f1f4f6] rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-border transition-colors">
           {period}
           <ChevronDown className="h-3 w-3" />
         </button>
       </div>
-      <div className="h-[180px]">
+      <div className="flex-1 min-h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={displayData} barCategoryGap="20%">
             <XAxis 
               dataKey="dayShort" 
-              axisLine={false}
+              axisLine={{ stroke: '#f1f4f6' }}
               tickLine={false}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 9.5, fill: '#94a3b8' }}
             />
             <YAxis hide />
             <Bar 
               dataKey="value" 
-              radius={[6, 6, 0, 0]}
+              radius={[5, 5, 0, 0]}
               maxBarSize={50}
             >
               {displayData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={entry.dayShort === today ? 'hsl(var(--green-dark))' : 'hsl(var(--green-pale))'}
+                  fill={entry.dayShort === today ? '#1a4731' : '#d8f3dc'}
                 />
               ))}
             </Bar>
@@ -97,12 +97,12 @@ export function PerformanceChart() {
       </div>
       {/* Legend */}
       <div className="flex gap-4 mt-3">
-        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-          <span className="w-2.5 h-2.5 rounded-sm bg-[hsl(var(--green-dark))] inline-block" />
+        <div className="flex items-center gap-1.5" style={{ fontSize: 11, color: '#94a3b8' }}>
+          <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#1a4731' }} />
           Leads
         </div>
-        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-          <span className="w-2.5 h-2.5 rounded-sm bg-[hsl(var(--green-pale))] inline-block" />
+        <div className="flex items-center gap-1.5" style={{ fontSize: 11, color: '#94a3b8' }}>
+          <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#d8f3dc' }} />
           Inquiries
         </div>
       </div>
