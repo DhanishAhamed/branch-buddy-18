@@ -217,31 +217,49 @@ export function SwipeableKPICards() {
     </div>
   );
 
+  const renderMobileCard = (card: typeof cards[0], index: number) => (
+    <div
+      key={card.title}
+      onClick={() => navigate(card.route)}
+      className="relative cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
+      style={{
+        padding: 12,
+        borderRadius: 14,
+        border: card.isDark ? 'none' : '1px solid #e2e8ed',
+        background: card.isDark ? '#1a4731' : '#fff',
+        color: card.isDark ? '#fff' : undefined,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      }}
+    >
+      <p style={{ fontSize: 10, fontWeight: 500, opacity: card.isDark ? 0.65 : 1, color: card.isDark ? '#fff' : '#94a3b8', marginBottom: 6 }}>
+        {card.title}
+      </p>
+      <p style={{ fontSize: card.title === 'Pipeline Value' ? 22 : 26, fontWeight: 800, lineHeight: 1, marginBottom: 6 }} className={card.isDark ? '' : 'text-foreground'}>
+        {card.value}
+      </p>
+      <div className="flex items-center gap-1" style={{ fontSize: 10, color: card.isDark ? 'rgba(255,255,255,0.6)' : '#94a3b8', flexWrap: 'wrap' }}>
+        <span
+          className="inline-flex items-center gap-0.5 rounded-full"
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            padding: '2px 6px',
+            background: pillStyles[card.pillType].bg,
+            color: pillStyles[card.pillType].color,
+          }}
+        >
+          {card.pillType === 'white' && leadPercentChange >= 0 && <TrendingUp style={{ width: 10, height: 10 }} />}
+          {card.pill}
+        </span>
+        <span style={{ fontSize: 10 }}>{card.subtitle}</span>
+      </div>
+    </div>
+  );
+
   if (isMobile) {
     return (
-      <div className="relative">
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 gap-3.5"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {cards.map((card, index) => (
-            <div key={card.title} className="flex-shrink-0 w-[calc(100%-2rem)] snap-center">
-              {renderCard(card, index)}
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-center gap-2 mt-3">
-          {cards.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => scrollToCard(index)}
-              className="w-2 h-2 rounded-full transition-colors"
-              style={{ background: currentIndex === index ? '#1a4731' : '#e2e8ed' }}
-            />
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        {cards.map((card, index) => renderMobileCard(card, index))}
       </div>
     );
   }
