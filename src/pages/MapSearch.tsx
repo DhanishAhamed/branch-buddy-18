@@ -448,14 +448,14 @@ export default function MapSearch() {
         {/* Map */}
         <div
           className="mx-3 md:mx-4 mt-3 md:mt-4 rounded-xl overflow-hidden border border-border relative md:flex-1"
-          style={{ height: '280px', minHeight: '280px' }}
+          style={{ minHeight: '300px' }}
         >
           {mapLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <div className="animate-pulse text-muted-foreground">Loading map...</div>
             </div>
           )}
-          <div ref={mapContainerRef} className="w-full h-full [&_.maplibregl-ctrl-top-right]:!right-3 [&_.maplibregl-ctrl-top-right]:!top-3" />
+          <div ref={mapContainerRef} className="w-full h-[300px] md:h-full min-h-[300px] block relative [&_.maplibregl-ctrl-top-right]:!right-3 [&_.maplibregl-ctrl-top-right]:!top-3" />
         </div>
 
         <p className="text-center text-sm text-muted-foreground py-3 md:pb-4">
