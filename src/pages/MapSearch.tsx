@@ -372,9 +372,9 @@ export default function MapSearch() {
 
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] min-h-0 overflow-x-hidden w-full max-w-[100vw]">
+    <div className="flex flex-col md:flex-row md:h-[calc(100dvh-3.5rem)] min-h-0 overflow-x-hidden overflow-y-auto w-full max-w-[100vw]">
       {/* Left Side - Map & Filters */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col min-h-0 md:h-full overflow-x-hidden">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col shrink-0 md:min-h-0 md:h-full overflow-x-hidden">
         {/* Filters */}
         <Card className="mx-3 md:mx-4 mt-3 md:mt-4 mb-0 border-border relative z-[1000] rounded-xl">
           <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
