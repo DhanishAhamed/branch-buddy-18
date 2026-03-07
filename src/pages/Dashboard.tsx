@@ -10,6 +10,7 @@ import { LeadSourcesPanel } from '@/components/dashboard/LeadSourcesPanel';
 import { SiteVisitReminder } from '@/components/dashboard/SiteVisitReminder';
 import { AgentLeaderboard } from '@/components/dashboard/AgentLeaderboard';
 import { PropertyHotlist } from '@/components/dashboard/PropertyHotlist';
+import { TeamPerformanceCard } from '@/components/dashboard/TeamPerformanceCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { WorkspaceSwitcher } from '@/components/layout/WorkspaceSwitcher';
@@ -55,6 +56,9 @@ export default function Dashboard() {
 
       {/* KPI Cards - responsive grid */}
       <SwipeableKPICards key={`kpi-${refreshKey}`} />
+
+      {/* Team Performance Overview */}
+      <TeamPerformanceCard refreshKey={refreshKey} />
 
       {/* Middle Row: responsive stacking */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_260px] gap-4">
