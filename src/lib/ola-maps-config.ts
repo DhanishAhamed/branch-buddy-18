@@ -1,5 +1,7 @@
 // Ola Maps Configuration using MapLibre GL JS
-export const OLA_MAPS_API_KEY = 'rfnYaNtWg4FACoTMxP3dl8K1WPsB7F6spoqsytwU';
+export const OLA_MAPS_API_KEY =
+  import.meta.env.VITE_OLA_MAPS_API_KEY ||
+  'rfnYaNtWg4FACoTMxP3dl8K1WPsB7F6spoqsytwU';
 
 export const OLA_STYLE_URL =
   'https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json';
