@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
+import { AddTaskDialog } from '@/components/tasks/AddTaskDialog';
 
 interface QuickActionsDropdownProps {
   onActionComplete?: () => void;
