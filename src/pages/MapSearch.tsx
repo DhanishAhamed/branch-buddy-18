@@ -464,9 +464,10 @@ export default function MapSearch() {
       </div>
 
       {/* Right Side - Property Cards */}
+      {/* Right Side - Property Cards */}
       <div className="w-full md:w-1/2 lg:w-3/5 min-h-0 overflow-y-auto border-t md:border-t-0 md:border-l border-border bg-muted/30 md:h-full">
-        <div className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg text-foreground flex items-center gap-2">
+        <div className="px-3 md:px-4 pb-20 md:pb-4 space-y-3 md:space-y-4">
+          <h2 className="font-bold text-base md:text-lg text-foreground flex items-center gap-2 pt-4 md:pt-4">
             <Building2 className="h-5 w-5 text-primary" />
             Properties in Area
           </h2>
@@ -483,16 +484,16 @@ export default function MapSearch() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               {filteredProperties.map((property) => (
                 <Card
                   key={property.id}
-                  className={`overflow-hidden hover:shadow-lg transition-all cursor-pointer ${
+                  className={`overflow-hidden hover:shadow-lg transition-all cursor-pointer border-border shadow-sm ${
                     selectedProperty?.id === property.id ? "ring-2 ring-primary" : ""
                   }`}
                   onClick={() => setSelectedProperty(property)}
                 >
-                  <div className="h-32 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center overflow-hidden">
+                  <div className="h-36 md:h-32 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center overflow-hidden">
                     {property.images?.[0] ? (
                       <img src={property.images[0]} alt={property.title} className="w-full h-full object-cover" />
                     ) : (
