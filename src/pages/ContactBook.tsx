@@ -315,17 +315,17 @@ export default function ContactBook() {
             </Button>
           </div>
 
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
             <Input
               placeholder="Search contacts..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-background/50 backdrop-blur-sm border-white/20 dark:border-white/10 shadow-sm focus-visible:ring-primary/30 h-11"
             />
           </div>
 
-          <div className="grid gap-2 flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1 overflow-y-auto pb-4 px-1">
             {filteredEntries.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <User className="h-10 w-10 mx-auto mb-2 opacity-40" />
@@ -333,54 +333,65 @@ export default function ContactBook() {
               </div>
             ) : (
               filteredEntries.map(entry => (
-                <div key={entry.id} className="group flex items-start sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                      {entry.name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm text-foreground truncate">{entry.name}</p>
-                        {getSourceBadge(entry.source_type)}
+                <div key={entry.id} className="relative group flex flex-col p-4 rounded-xl bg-background/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] hover:bg-background/60 transition-all">
+                  <div className="flex justify-between items-start mb-3">
+                    <Avatar className="h-12 w-12 border-2 border-primary/10 shadow-sm">
+                      <AvatarFallback className="bg-primary/5 text-primary text-sm font-semibold">
+                        {entry.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground/70 hover:text-foreground">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setEntryToDelete(entry.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Contact
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex flex-col gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold text-base text-foreground truncate">{entry.name}</p>
                       </div>
+                      <div className="mb-2">{getSourceBadge(entry.source_type)}</div>
                       {entry.notes && (
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{entry.notes}</p>
+                        <p className="text-sm text-muted-foreground/80 line-clamp-2 leading-relaxed">{entry.notes}</p>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1 sm:w-48 shrink-0 py-1 sm:py-0">
+
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-border/40">
                       {entry.phone ? (
-                        <span className="flex items-center gap-2 text-xs text-muted-foreground truncate">
-                          <Phone className="h-3 w-3 shrink-0" />
+                        <span className="flex items-center gap-2 text-sm text-foreground/80 truncate">
+                          <Phone className="h-3.5 w-3.5 text-primary/60 shrink-0" />
                           {entry.phone}
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground/30 truncate hidden sm:block">- No Phone -</span>
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground/40 truncate">
+                          <Phone className="h-3.5 w-3.5 opacity-50 shrink-0" />
+                          No phone
+                        </span>
                       )}
                       {entry.email ? (
-                        <span className="flex items-center gap-2 text-xs text-muted-foreground truncate">
-                          <Mail className="h-3 w-3 shrink-0" />
+                        <span className="flex items-center gap-2 text-sm text-foreground/80 truncate">
+                          <Mail className="h-3.5 w-3.5 text-primary/60 shrink-0" />
                           {entry.email}
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground/30 truncate hidden sm:block">- No Email -</span>
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground/40 truncate">
+                          <Mail className="h-3.5 w-3.5 opacity-50 shrink-0" />
+                          No email
+                        </span>
                       )}
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setEntryToDelete(entry.id)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Contact
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               ))
             )}
