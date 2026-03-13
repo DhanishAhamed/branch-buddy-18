@@ -22,14 +22,7 @@ interface Lead {
   status: string;
   source: string | null;
   created_at: string;
-  branch_id: string;
   assigned_to: string | null;
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  city: string;
 }
 
 interface Profile {
@@ -38,58 +31,7 @@ interface Profile {
   full_name: string | null;
 }
 
-const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-  new: { bg: 'bg-blue-500/10', text: 'text-blue-600', label: 'New' },
-  contacted: { bg: 'bg-yellow-500/10', text: 'text-yellow-600', label: 'Contacted' },
-  qualified: { bg: 'bg-purple-500/10', text: 'text-purple-600', label: 'Qualified' },
-  site_visit_scheduled: { bg: 'bg-primary/10', text: 'text-primary', label: 'Site Visit' },
-  negotiating: { bg: 'bg-orange-500/10', text: 'text-orange-600', label: 'Negotiating' },
-  closed_won: { bg: 'bg-green-500/10', text: 'text-green-600', label: 'Won 🎉' },
-  closed_lost: { bg: 'bg-destructive/10', text: 'text-destructive', label: 'Lost' },
-};
-
-export default function Leads() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [staffProfiles, setStaffProfiles] = useState<Profile[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
-  const [filterStaff, setFilterStaff] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const { profile, isAdmin } = useAuth();
-  const { activeWorkspace } = useWorkspace();
-  const isMobile = useIsMobile();
-
-  useEffect(() => {
-    if (profile?.branch_id || isAdmin) {
-      fetchData();
-    }
-  }, [profile, isAdmin, activeWorkspace?.id]);
-
-  const fetchData = async () => {
-    const [leadsRes, branchesRes, profilesRes] = await Promise.all([
-      supabase.from('leads').select('*').order('created_at', { ascending: false }),
-      supabase.from('branches').select('*'),
-      supabase.from('profiles').select('id, user_id, full_name'),
-    ]);
-    
-    if (leadsRes.data) setLeads(leadsRes.data);
-    if (branchesRes.data) setBranches(branchesRes.data);
-    if (profilesRes.data) setStaffProfiles(profilesRes.data);
-  };
-
-  const getStaffName = (userId: string | null) => {
-    if (!userId) return null;
-    return staffProfiles.find(p => p.user_id === userId)?.full_name || 'Unknown';
-  };
-
   let filteredLeads = leads;
-  if (!isAdmin && profile?.branch_id) {
-    filteredLeads = filteredLeads.filter(lead => lead.branch_id === profile.branch_id);
-  }
   if (isAdmin && filterStaff !== 'all') {
     filteredLeads = filteredLeads.filter(lead => lead.assigned_to === filterStaff);
   }
