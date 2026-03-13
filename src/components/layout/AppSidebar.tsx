@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -39,15 +40,11 @@ const adminItems = [
   { title: 'Settings', url: '/admin/settings', icon: Settings },
 ];
 
-const portalItems = [
-  { title: 'Commercial', url: '/portal/commercial', type: 'commercial' },
-  { title: 'Residential', url: '/portal/residential', type: 'residential' },
-];
-
-const allSearchItems = [
+const getSearchItems = (slug: string) => [
   ...mainItems.map(i => ({ title: i.title, url: i.url })),
   ...adminItems.map(i => ({ title: i.title, url: i.url })),
-  ...portalItems.map(i => ({ title: i.title, url: i.url })),
+  { title: 'Commercial', url: `/portal/commercial/${slug}`, type: 'commercial' },
+  { title: 'Residential', url: `/portal/residential/${slug}`, type: 'residential' },
   { title: 'Owner Contacts', url: '/admin/owners' },
 ];
 
@@ -60,12 +57,19 @@ export function AppSidebar({ onNavClick }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, isAdmin, user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { toast } = useToast();
   const { signOut } = useAuth();
   const collapsed = state === 'collapsed';
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [leadCount, setLeadCount] = useState(0);
+
+  const slug = activeWorkspace?.slug || '';
+  const portalItems = [
+    { title: 'Commercial', url: `/portal/commercial/${slug}`, type: 'commercial' },
+    { title: 'Residential', url: `/portal/residential/${slug}`, type: 'residential' },
+  ];
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -92,6 +96,8 @@ export function AppSidebar({ onNavClick }: AppSidebarProps) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const allSearchItems = useMemo(() => getSearchItems(slug), [slug]);
+
   const filteredItems = allSearchItems.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -104,7 +110,7 @@ export function AppSidebar({ onNavClick }: AppSidebarProps) {
   };
 
   const copyPortalLink = (type: string) => {
-    const link = `${window.location.origin}/portal/${type}`;
+    const link = `${window.location.origin}/portal/${type}/${slug}`;
     navigator.clipboard.writeText(link);
     toast({ title: 'Link copied!', description: `${type} portal link copied to clipboard` });
   };
@@ -124,11 +130,10 @@ export function AppSidebar({ onNavClick }: AppSidebarProps) {
         <SidebarMenuButton
           asChild
           isActive={active}
-          className={`relative transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${
-            active
-              ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
+          className={`relative transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${active
+            ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
         >
           <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="" onClick={handleNavItemClick}>
             {active && (
@@ -205,11 +210,10 @@ export function AppSidebar({ onNavClick }: AppSidebarProps) {
                       <SidebarMenuButton
                         asChild
                         isActive={isActive(item.url)}
-                        className={`relative flex-1 transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${
-                          isActive(item.url)
-                            ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        }`}
+                        className={`relative flex-1 transition-all duration-200 rounded-[10px] text-[13.5px] font-medium py-2.5 ${isActive(item.url)
+                          ? 'bg-[hsl(var(--green-bg))] text-[hsl(var(--green-dark))] font-semibold'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          }`}
                       >
                         <NavLink to={item.url} className="flex items-center gap-3 py-2.5" activeClassName="" onClick={handleNavItemClick}>
                           {isActive(item.url) && (

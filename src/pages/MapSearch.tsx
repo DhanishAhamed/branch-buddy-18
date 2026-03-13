@@ -3,6 +3,7 @@ import maplibregl from "maplibre-gl";
 import * as turf from "@turf/turf";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Search, MapPin, Loader2, ChevronDown, LayoutGrid, List, Locate, Map as MapIcon, Layers } from "lucide-react";
 import { OLA_MAPS_API_KEY, OLA_STYLE_URL, OLA_AUTOCOMPLETE_URL, DEFAULT_CENTER } from "@/lib/ola-maps-config";
 import { createMarkerElement, createClusterElement, formatPrice } from "@/components/maps/PropertyMarker";
@@ -74,6 +75,7 @@ export default function MapSearch() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { profile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
 
   // ────────────── MAP INIT ──────────────
   useEffect(() => {
@@ -125,8 +127,17 @@ export default function MapSearch() {
   // ────────────── DATA FETCH ──────────────
   useEffect(() => {
     fetchPropertyTypes();
-    fetchAllProperties();
   }, []);
+
+  useEffect(() => {
+    if (activeWorkspace?.id) {
+      fetchAllProperties();
+    } else {
+      setAllProperties([]);
+      setFilteredProperties([]);
+      setDataLoading(false);
+    }
+  }, [activeWorkspace?.id]);
 
   useEffect(() => { filterProperties(); }, [center, radius, selectedType, priceRange, allProperties, hasSearched, searchQuery]);
 
@@ -200,15 +211,20 @@ export default function MapSearch() {
   };
 
   const fetchAllProperties = async () => {
+    if (!activeWorkspace?.id) return;
     setDataLoading(true);
-    const { data, error } = await (supabase.rpc as any)("get_properties_with_coords");
 
-    if (error) {
-      console.error("Error fetching properties:", error);
+    // Call RPC - we might need to filter this in memory if the RPC doesn't support workspace_id filtering yet,
+    // or we can use the original fallback query if the RPC fails.
+    const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("get_properties_with_coords");
+
+    if (rpcError || !rpcData) {
+      console.warn("RPC failed or no data, falling back to standard query:", rpcError);
       const { data: fallbackData } = await supabase
         .from("properties")
         .select("id, title, address, price, property_type_id, bedrooms, bathrooms, area_sqft, images, location, status, description")
-        .eq("status", "available");
+        .eq("status", "available")
+        .eq("workspace_id", activeWorkspace.id);
 
       if (fallbackData) {
         const props: Property[] = [];
@@ -232,9 +248,27 @@ export default function MapSearch() {
       return;
     }
 
-    if (data && Array.isArray(data)) {
-      const props: Property[] = data
-        .filter((p: any) => p.lat !== null && p.lng !== null)
+    if (rpcData && Array.isArray(rpcData)) {
+      // Since `get_properties_with_coords` returns all properties, we must filter them locally
+      // to only show properties belonging to the active workspace.
+      // Wait, let's fetch workspace IDs for these properties to filter them.
+      const propertyIds = rpcData.map(p => p.id);
+      if (propertyIds.length === 0) {
+        setAllProperties([]);
+        setDataLoading(false);
+        return;
+      }
+
+      const { data: workspaceData } = await supabase
+        .from("properties")
+        .select("id, workspace_id")
+        .in("id", propertyIds)
+        .eq("workspace_id", activeWorkspace.id);
+
+      const validPropertyIds = new Set(workspaceData?.map(p => p.id) || []);
+
+      const props: Property[] = rpcData
+        .filter((p: any) => p.lat !== null && p.lng !== null && validPropertyIds.has(p.id))
         .map((p: any) => ({
           id: p.id, title: p.title, address: p.address, price: p.price,
           property_type_id: p.property_type_id, bedrooms: p.bedrooms,
@@ -245,6 +279,8 @@ export default function MapSearch() {
     }
     setDataLoading(false);
   };
+
+
 
   const filterProperties = () => {
     let filtered = [...allProperties];
@@ -513,15 +549,13 @@ export default function MapSearch() {
         {/* Mobile View Toggle */}
         <div className="absolute top-3 left-3 z-10 md:hidden flex gap-1.5">
           <button onClick={() => setMobileView(mobileView === 'map' ? 'both' : 'map')}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md border transition-colors ${
-              mobileView === 'map' ? 'bg-[#1a4731] text-white border-[#1a4731]' : 'bg-white text-[#1e293b] border-[#e2e8ed]'
-            }`}>
+            className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md border transition-colors ${mobileView === 'map' ? 'bg-[#1a4731] text-white border-[#1a4731]' : 'bg-white text-[#1e293b] border-[#e2e8ed]'
+              }`}>
             <MapIcon className="h-3 w-3 inline mr-1" /> Map
           </button>
           <button onClick={() => setMobileView(mobileView === 'list' ? 'both' : 'list')}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md border transition-colors ${
-              mobileView === 'list' ? 'bg-[#1a4731] text-white border-[#1a4731]' : 'bg-white text-[#1e293b] border-[#e2e8ed]'
-            }`}>
+            className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md border transition-colors ${mobileView === 'list' ? 'bg-[#1a4731] text-white border-[#1a4731]' : 'bg-white text-[#1e293b] border-[#e2e8ed]'
+              }`}>
             <List className="h-3 w-3 inline mr-1" /> List
           </button>
         </div>
@@ -569,9 +603,8 @@ function FilterChip({ label, active, options, onChange }: {
   return (
     <div ref={ref} className="relative flex-shrink-0">
       <button onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap ${
-          active ? 'bg-[#1a4731] text-white border-[#1a4731]' : 'bg-white text-[#4b5563] border-[#e2e8ed] hover:border-[#94a3b8]'
-        }`}>
+        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap ${active ? 'bg-[#1a4731] text-white border-[#1a4731]' : 'bg-white text-[#4b5563] border-[#e2e8ed] hover:border-[#94a3b8]'
+          }`}>
         {label}
         <ChevronDown className="h-3 w-3" />
       </button>

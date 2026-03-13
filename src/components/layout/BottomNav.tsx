@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useNavigate } from 'react-router-dom';
 
 const navItems = [
@@ -18,7 +19,10 @@ const navItems = [
 
 export function BottomNav() {
   const { isAdmin, signOut } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const navigate = useNavigate();
+
+  const slug = activeWorkspace?.slug || '';
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border">
@@ -34,7 +38,7 @@ export function BottomNav() {
             <span className="text-xs">{item.title}</span>
           </NavLink>
         ))}
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger className="flex flex-col items-center justify-center flex-1 py-2 text-muted-foreground hover:text-primary transition-colors">
             <MoreHorizontal className="h-5 w-5 mb-1" />
@@ -53,10 +57,10 @@ export function BottomNav() {
             <DropdownMenuItem onClick={() => navigate('/calendar')}>
               Calendar
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/portal/residential')}>
+            <DropdownMenuItem onClick={() => navigate(`/portal/residential/${slug}`)}>
               Residential Portal
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/portal/commercial')}>
+            <DropdownMenuItem onClick={() => navigate(`/portal/commercial/${slug}`)}>
               Commercial Portal
             </DropdownMenuItem>
             {isAdmin && (

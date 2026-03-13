@@ -296,40 +296,41 @@ export default function Portal() {
   const [enquiryEmail, setEnquiryEmail] = useState('');
   const [enquiryPhone, setEnquiryPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [workspaceWhatsApp, setWorkspaceWhatsApp] = useState<Record<string, string | null>>({});
+  const [workspaceWhatsApp, setWorkspaceWhatsApp] = useState<string | null>(null);
   const [currentWorkspace, setCurrentWorkspace] = useState<WorkspaceInfo | null>(null);
-  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceInfo[]>([]);
+  const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchWorkspaces();
-  }, []);
+  const fetchWorkspace = async () => {
+    if (!workspaceSlug) {
+      setIsLoadingWorkspace(false);
+      return;
+    }
 
-  useEffect(() => {
-    fetchPropertyTypes();
-    fetchProperties();
-  }, [type, selectedPropertyType, currentWorkspace]);
-
-  const fetchWorkspaces = async () => {
-    // Use workspace_contacts view (public, no auth required)
     const { data } = await supabase
       .from('workspace_contacts' as any)
-      .select('id, name, slug, logo_url, whatsapp_number');
+      .select('id, name, slug, logo_url, whatsapp_number')
+      .eq('slug', workspaceSlug)
+      .single();
 
     if (data) {
-      const wsData = (data as unknown) as WorkspaceInfo[];
-      setAllWorkspaces(wsData);
-
-      const map: Record<string, string | null> = {};
-      wsData.forEach((ws) => { map[ws.id] = ws.whatsapp_number; });
-      setWorkspaceWhatsApp(map);
-
-      if (workspaceSlug) {
-        const matched = wsData.find((w) => w.slug === workspaceSlug);
-        if (matched) setCurrentWorkspace(matched);
-      }
+      const ws = data as unknown as WorkspaceInfo;
+      setCurrentWorkspace(ws);
+      setWorkspaceWhatsApp(ws.whatsapp_number);
     }
+    setIsLoadingWorkspace(false);
   };
+
+  useEffect(() => {
+    fetchWorkspace();
+  }, [workspaceSlug]);
+
+  useEffect(() => {
+    if (currentWorkspace) {
+      fetchPropertyTypes();
+      fetchProperties();
+    }
+  }, [type, selectedPropertyType, currentWorkspace]);
 
   const fetchPropertyTypes = async () => {
     const { data } = await supabase.from('property_types').select('*').in('portal_type', [type, 'rentals']);
@@ -424,41 +425,31 @@ export default function Portal() {
     setEnquiryProperty(property);
   };
 
-  // If no workspace slug provided, show workspace selection page
-  if (!workspaceSlug && allWorkspaces.length > 0) {
+  // If no workspace found or no slug provided, show error
+  if (!workspaceSlug || (!currentWorkspace && !isLoadingWorkspace)) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className={`bg-gradient-to-r ${config.gradient} text-white`}>
-          <div className="container mx-auto px-4 py-8 md:py-12">
-            <div className="max-w-3xl">
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">{config.title}</h1>
-              <p className="text-white/80 text-base">Select a business to browse properties</p>
-            </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full border-0 shadow-lg text-center p-8">
+          <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Building2 className="h-8 w-8 text-muted-foreground" />
           </div>
-        </header>
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {allWorkspaces.map(ws => (
-              <Link key={ws.id} to={`/portal/${type}/${ws.slug}`}>
-                <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 group border-0 shadow-md">
-                  <CardContent className="p-6 flex items-center gap-4">
-                    {ws.logo_url ? (
-                      <img src={ws.logo_url} alt={ws.name} className="w-12 h-12 rounded-xl object-cover" />
-                    ) : (
-                      <div className={`w-12 h-12 bg-gradient-to-br ${config.gradient} rounded-xl flex items-center justify-center`}>
-                        <Building2 className="h-6 w-6 text-white" />
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">{ws.name}</h3>
-                      <p className="text-sm text-muted-foreground">View {type} properties</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
+          <h2 className="text-2xl font-bold mb-2 text-foreground">Workspace Not Found</h2>
+          <p className="text-muted-foreground mb-6">
+            The property portal you are looking for does not exist or requires a valid workspace link. Please check the URL and try again.
+          </p>
+          <Link to="/">
+            <Button className="font-semibold px-6">Return to Homepage</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
+  // Still loading workspace details
+  if (isLoadingWorkspace) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }

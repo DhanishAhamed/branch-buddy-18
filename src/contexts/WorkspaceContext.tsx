@@ -33,15 +33,19 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 const STORAGE_KEY = 'currentWorkspaceId';
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  // Start as true — stays true until auth AND workspace fetch both complete
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitching, setIsSwitching] = useState(false);
   const [userRole, setUserRole] = useState<WorkspaceRole>(null);
   const [membershipMap, setMembershipMap] = useState<Map<string, string>>(new Map());
 
   const fetchWorkspaces = async () => {
+    // Wait for auth to settle before deciding there's no user
+    if (authLoading) return;
+
     if (!user) {
       setWorkspaces([]);
       setActiveWorkspace(null);
@@ -50,6 +54,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       return;
     }
+
 
     setIsLoading(true);
 
@@ -170,7 +175,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchWorkspaces();
-  }, [user]);
+  }, [user, authLoading]);
 
   return (
     <WorkspaceContext.Provider value={{
