@@ -81,7 +81,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
   };
 
   const handleImport = async () => {
-    if (!file || !profile?.branch_id) return;
+    if (!file || !activeWorkspace?.id) return;
 
     setIsImporting(true);
     let successCount = 0;
