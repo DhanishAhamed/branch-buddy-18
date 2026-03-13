@@ -221,10 +221,10 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.branch_id) {
+    if (!activeWorkspace?.id) {
       toast({
         title: 'Error',
-        description: 'No branch assigned. Please contact admin.',
+        description: 'No workspace selected. Please select a workspace.',
         variant: 'destructive',
       });
       return;
@@ -234,12 +234,10 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
     
     const selectedType = propertyTypes.find(t => t.id === propertyTypeId);
     
-    // Prepare location as PostGIS point
     const locationPoint = location 
       ? `POINT(${location.lng} ${location.lat})`
       : null;
     
-    // Prepare owner details
     const ownerDetails = (ownerName || ownerPhone) ? {
       name: ownerName || null,
       phone: ownerPhone || null,
@@ -255,10 +253,9 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }: AddProperty
       bathrooms: bathrooms ? parseInt(bathrooms) : null,
       property_type_id: propertyTypeId || null,
       portal_type: (selectedType?.portal_type as 'commercial' | 'residential' | 'rentals') || null,
-      branch_id: profile.branch_id,
       created_by: user?.id,
       location: locationPoint,
-      workspace_id: activeWorkspace?.id || null,
+      workspace_id: activeWorkspace.id,
       owner_details: ownerDetails,
       youtube_url: youtubeUrl || null,
     }]).select().single();

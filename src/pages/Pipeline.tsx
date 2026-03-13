@@ -348,7 +348,7 @@ export default function Pipeline() {
   }, []);
 
   useEffect(() => {
-    if (profile?.branch_id) {
+    if (activeWorkspace?.id) {
       fetchLeads();
       fetchProperties();
     }
