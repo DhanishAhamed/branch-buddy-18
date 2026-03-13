@@ -32,6 +32,8 @@ interface Property {
   images: string[] | null;
   location?: unknown;
   youtube_url?: string | null;
+  lat?: number;
+  lng?: number;
 }
 
 interface EditPropertyDialogProps {
@@ -78,13 +80,22 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
       setStatus(property.status);
       setExistingImages(property.images || []);
       setYoutubeUrl(property.youtube_url || '');
-      
-      // Parse location
+
+      // Parse location from various formats (GeoJSON, WKT string, or explicit lat/lng)
       if (property.location) {
-        const match = property.location?.toString().match(/POINT\(([^ ]+) ([^)]+)\)/);
-        if (match) {
-          setLocation({ lng: parseFloat(match[1]), lat: parseFloat(match[2]) });
+        if (typeof property.location === 'object' && property.location !== null) {
+          const loc = property.location as any;
+          if (loc.type === 'Point' && Array.isArray(loc.coordinates)) {
+            setLocation({ lng: loc.coordinates[0], lat: loc.coordinates[1] });
+          }
+        } else if (typeof property.location === 'string') {
+          const match = property.location.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
+          if (match) {
+            setLocation({ lng: parseFloat(match[1]), lat: parseFloat(match[2]) });
+          }
         }
+      } else if (property.lat && property.lng) {
+        setLocation({ lng: property.lng, lat: property.lat });
       }
     }
   }, [property, open]);
@@ -98,7 +109,7 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
     const files = Array.from(e.target.files || []);
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
     setNewImages(prev => [...prev, ...imageFiles]);
-    
+
     imageFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -129,13 +140,13 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
 
   const uploadFiles = async (propertyId: string) => {
     const uploadedUrls: string[] = [];
-    
+
     for (const image of newImages) {
       const fileName = `${propertyId}/${Date.now()}-${image.name}`;
       const { error } = await supabase.storage
         .from('property-media')
         .upload(fileName, image);
-      
+
       if (!error) {
         const { data: urlData } = supabase.storage
           .from('property-media')
@@ -149,7 +160,7 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
       const { error } = await supabase.storage
         .from('property-media')
         .upload(fileName, video);
-      
+
       if (!error) {
         const { data: urlData } = supabase.storage
           .from('property-media')
@@ -166,17 +177,17 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
     if (!property) return;
 
     setIsSubmitting(true);
-    
+
     const selectedType = propertyTypes.find(t => t.id === propertyTypeId);
-    const locationPoint = location 
+    const locationPoint = location
       ? `POINT(${location.lng} ${location.lat})`
       : null;
-    
+
     // Upload new files
     const newUrls = await uploadFiles(property.id);
     const allImages = [...existingImages, ...newUrls];
-    
-    const { error } = await supabase
+
+    const { error, data } = await supabase
       .from('properties')
       .update({
         title,
@@ -193,14 +204,19 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
         images: allImages.length > 0 ? allImages : null,
         youtube_url: youtubeUrl || null,
       })
-      .eq('id', property.id);
+      .eq('id', property.id)
+      .select();
+
+    console.log('[EditProperty] Save response:', { data, error, locationPoint });
 
     setIsSubmitting(false);
 
-    if (error) {
+    // Identify hidden constraint/RLS errors
+    if (error || !data || data.length === 0) {
+      console.error('[EditProperty] Update failed or blocked by RLS:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update property',
+        description: error?.message || 'Failed to update property (permission denied or constraint error).',
         variant: 'destructive',
       });
     } else {
@@ -230,7 +246,7 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="edit-type">Property Type</Label>
               <Select value={propertyTypeId} onValueChange={setPropertyTypeId}>
@@ -354,8 +370,8 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
                 className="hidden"
                 id="edit-image-upload"
               />
-              <label 
-                htmlFor="edit-image-upload" 
+              <label
+                htmlFor="edit-image-upload"
                 className="flex flex-col items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ImageIcon className="h-8 w-8" />
@@ -403,8 +419,8 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
                 className="hidden"
                 id="edit-video-upload"
               />
-              <label 
-                htmlFor="edit-video-upload" 
+              <label
+                htmlFor="edit-video-upload"
                 className="flex flex-col items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Video className="h-8 w-8" />
