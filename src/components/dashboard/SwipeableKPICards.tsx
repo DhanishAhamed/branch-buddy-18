@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ArrowUpRight, TrendingUp } from 'lucide-react';
 import { useDevice } from '@/hooks/use-device';
 import { useNavigate } from 'react-router-dom';
@@ -27,17 +28,18 @@ export function SwipeableKPICards() {
     pipelineValue: 0,
     activeDeals: 0,
   });
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { isMobile } = useDevice();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && profile?.branch_id) {
+    if (user && activeWorkspace?.id) {
       fetchKPIs();
     }
-  }, [user, profile]);
+  }, [user, activeWorkspace?.id]);
 
   const fetchKPIs = async () => {
     const today = new Date();
@@ -100,7 +102,7 @@ export function SwipeableKPICards() {
     });
   };
 
-  const leadPercentChange = kpis.lastMonthLeads > 0 
+  const leadPercentChange = kpis.lastMonthLeads > 0
     ? Math.round(((kpis.activeLeads - kpis.lastMonthLeads) / kpis.lastMonthLeads) * 100)
     : 0;
 

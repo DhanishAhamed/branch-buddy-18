@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { GitBranch, Plus, Trash2, GripVertical, Save } from 'lucide-react';
+import { Workflow, Plus, Trash2, GripVertical, Save } from 'lucide-react';
 import {
   DndContext,
   DragEndEvent,
@@ -136,7 +136,7 @@ export function PipelineSettings() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <GitBranch className="h-5 w-5" />
+          <Workflow className="h-5 w-5" />
           Pipeline Stages
         </CardTitle>
       </CardHeader>
@@ -275,7 +275,7 @@ function SortableStageRow({
       <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
         <GripVertical className="h-4 w-4 text-muted-foreground" />
       </div>
-      
+
       {editing ? (
         <>
           <Input

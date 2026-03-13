@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 
@@ -18,13 +19,14 @@ interface Lead {
 
 export function RecentLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
 
   useEffect(() => {
-    if (user && profile?.branch_id) {
+    if (user && activeWorkspace?.id) {
       fetchRecentLeads();
     }
-  }, [user, profile]);
+  }, [user, activeWorkspace?.id]);
 
   const fetchRecentLeads = async () => {
     const { data } = await supabase

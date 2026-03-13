@@ -58,19 +58,11 @@ interface Property {
   area_sqft: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
-  branch_id: string;
   images: string[] | null;
   status: string;
   property_type: { name: string } | null;
-  branch: { name: string; city: string } | null;
   youtube_url?: string | null;
   workspace_id?: string | null;
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  city: string;
 }
 
 interface WorkspaceWhatsApp {
@@ -122,21 +114,21 @@ const getPlaceholderImage = (propertyId: string, portalType: string) => {
 // WhatsApp icon component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
   </svg>
 );
 
 // Generate WhatsApp message URL
 const getWhatsAppUrl = (property: Property, portalType: string, whatsappNumber?: string | null) => {
-  const priceText = property.price 
+  const priceText = property.price
     ? `₹${property.price >= 10000000 ? (property.price / 10000000).toFixed(1) + 'Cr' : property.price >= 100000 ? (property.price / 100000).toFixed(0) + 'L' : property.price.toLocaleString()}`
     : 'Price on request';
-  
+
   const message = encodeURIComponent(
     `Hi! I'm interested in this ${portalType} property:\n\n` +
     `🏠 ${property.title}\n` +
     `💰 ${priceText}${portalType === 'rentals' ? '/month' : ''}\n` +
-    `📍 ${property.address || property.branch?.city || 'Location not specified'}\n\n` +
+    `📍 ${property.address || 'Location not specified'}\n\n` +
     `Please share more details.`
   );
 
@@ -160,14 +152,14 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
   const firstImage = property.images?.[0] || getPlaceholderImage(property.id, type);
 
   return (
-    <Card 
+    <Card
       className={`overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 group border-0 shadow-md ${sold ? 'opacity-75' : ''}`}
       onClick={onClick}
     >
       {/* Image */}
       <div className="relative h-40 overflow-hidden">
-        <img 
-          src={firstImage} 
+        <img
+          src={firstImage}
           alt={property.title}
           className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${sold ? 'grayscale' : ''}`}
           onError={(e) => {
@@ -175,20 +167,16 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
             (e.target as HTMLImageElement).src = getPlaceholderImage(property.id, type);
           }}
         />
-        
+
         {/* Status Badge */}
         {sold && (
           <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
             {property.status === 'sold' ? 'SOLD' : 'RENTED'}
           </Badge>
         )}
-        
+
         {/* City Badge */}
-        {property.branch && !sold && (
-          <Badge className="absolute top-2 left-2 bg-white/90 text-foreground hover:bg-white">
-            {property.branch.city}
-          </Badge>
-        )}
+
 
         {/* Share Button */}
         <DropdownMenu>
@@ -216,13 +204,13 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
+
       <CardContent className="p-3 space-y-2">
         {/* Title */}
         <h3 className="font-semibold text-foreground line-clamp-1 text-sm group-hover:text-primary transition-colors">
           {property.title}
         </h3>
-        
+
         {/* Address */}
         {property.address && (
           <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
@@ -267,7 +255,7 @@ function PropertyCard({ property, config, type, formatPrice, onClick, isSold = f
               <span className="text-muted-foreground text-sm">Price on request</span>
             )}
           </div>
-          
+
           {/* WhatsApp Button */}
           {!sold && (
             <a
@@ -327,11 +315,11 @@ export default function Portal() {
     const { data } = await supabase
       .from('workspace_contacts' as any)
       .select('id, name, slug, logo_url, whatsapp_number');
-    
+
     if (data) {
       const wsData = (data as unknown) as WorkspaceInfo[];
       setAllWorkspaces(wsData);
-      
+
       const map: Record<string, string | null> = {};
       wsData.forEach((ws) => { map[ws.id] = ws.whatsapp_number; });
       setWorkspaceWhatsApp(map);
@@ -351,7 +339,7 @@ export default function Portal() {
   const fetchProperties = async () => {
     let query = supabase
       .from('properties_public')
-      .select('*, property_type:property_types(name), branch:branches(name, city)')
+      .select('*, property_type:property_types(name)')
       .in('portal_type', [type, 'rentals'])
       .in('status', ['available', 'sold', 'rented']);
 
@@ -385,7 +373,7 @@ export default function Portal() {
 
   const handleEnquiry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!enquiryProperty || !enquiryProperty.branch_id) {
+    if (!enquiryProperty) {
       toast({
         title: 'Error',
         description: 'Property information is incomplete. Please try another property.',
@@ -400,7 +388,7 @@ export default function Portal() {
       email: enquiryEmail || null,
       phone: enquiryPhone || null,
       source: 'portal',
-      branch_id: enquiryProperty.branch_id,
+      workspace_id: enquiryProperty.workspace_id || null,
       property_id: enquiryProperty.id,
       notes: `Enquiry from ${type} portal for: ${enquiryProperty.title}`,
     });
@@ -495,7 +483,7 @@ export default function Portal() {
             </div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">{config.title}</h1>
             <p className="text-white/80 text-base mb-4">{config.subtitle}</p>
-            
+
             {/* Search Bar */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
@@ -572,7 +560,7 @@ export default function Portal() {
                 <p className="text-sm text-muted-foreground">Properties that found their perfect match</p>
               </div>
             </div>
-            
+
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {soldProperties.map((property) => (
                 <PropertyCard
@@ -622,7 +610,7 @@ export default function Portal() {
                 )}
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="name">Your Name *</Label>
               <Input
@@ -653,8 +641,8 @@ export default function Portal() {
                 placeholder="+91 98765 43210"
               />
             </div>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className={`w-full bg-gradient-to-r ${config.gradient} hover:opacity-90`}
               disabled={isSubmitting}
             >

@@ -15,7 +15,7 @@ export default function PendingApproval() {
           </div>
           <CardTitle className="text-2xl font-bold">Access Restricted</CardTitle>
           <CardDescription className="text-base">
-            Please wait for an Admin to approve your account and assign a Branch.
+            Please wait for an Admin to approve your account and assign a Workspace.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -24,18 +24,18 @@ export default function PendingApproval() {
               Signed in as: <span className="font-medium text-foreground">{profile?.email}</span>
             </p>
           </div>
-          
+
           <div className="flex gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={refreshProfile}
               className="flex-1"
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Check Status
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={signOut}
               className="flex-1"
             >

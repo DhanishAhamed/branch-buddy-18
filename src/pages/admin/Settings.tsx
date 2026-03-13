@@ -8,16 +8,16 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Building2, Tag, MessageCircle, Trash2, Save, GitBranch, Layers, Thermometer, Users } from 'lucide-react';
+import { Settings, Plus, Tag, MessageCircle, Trash2, Save, Layers, Thermometer, Users, Workflow } from 'lucide-react';
 import { PipelineSettings } from '@/components/settings/PipelineSettings';
 
-interface Branch { id: string; name: string; city: string; }
 interface PropertyType { id: string; name: string; portal_type: string; }
-interface WhatsAppTemplate { id: string; name: string; template: string; branch_id: string | null; }
+interface WhatsAppTemplate { id: string; name: string; template: string; workspace_id: string | null; }
 interface WhatsAppConfig { 
   id: string; 
-  branch_id: string | null; 
+  workspace_id: string | null; 
   api_key: string | null;
   phone_number: string | null;
   business_name: string | null;
@@ -26,44 +26,41 @@ interface WhatsAppConfig {
 
 export default function AdminSettings() {
   const { profile } = useAuth();
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const { activeWorkspace } = useWorkspace();
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([]);
   const [whatsappConfig, setWhatsappConfig] = useState<WhatsAppConfig | null>(null);
   const [showTemperatureIndicator, setShowTemperatureIndicator] = useState(true);
   const [staffProfiles, setStaffProfiles] = useState<{ user_id: string; full_name: string | null; staff_type: string | null }[]>([]);
-  const [newBranch, setNewBranch] = useState({ name: '', city: '' });
   const [newType, setNewType] = useState<{ name: string; portal_type: 'commercial' | 'residential' | 'rentals' }>({ name: '', portal_type: 'residential' });
-  const [newTemplate, setNewTemplate] = useState({ name: '', template: '', branch_id: '' });
+  const [newTemplate, setNewTemplate] = useState({ name: '', template: '' });
   const [configForm, setConfigForm] = useState({ api_key: '', phone_number: '', business_name: '', is_enabled: false });
   const { toast } = useToast();
 
   useEffect(() => { 
     fetchData(); 
-  }, [profile?.branch_id]);
+  }, [activeWorkspace?.id]);
 
   const fetchData = async () => {
-    const [b, t, templates, config, leadSettings, staff] = await Promise.all([
-      supabase.from('branches').select('*'),
+    const workspaceId = activeWorkspace?.id;
+    const [t, templates, config, leadSettings, staff] = await Promise.all([
       supabase.from('property_types').select('*'),
       supabase.from('whatsapp_templates').select('*'),
       supabase.from('whatsapp_config').select('*').limit(1).maybeSingle(),
-      profile?.branch_id 
+      workspaceId 
         ? supabase.from('lead_settings')
             .select('show_temperature_indicator')
-            .or(`branch_id.eq.${profile.branch_id},branch_id.is.null`)
-            .order('branch_id', { ascending: false, nullsFirst: false })
+            .or(`workspace_id.eq.${workspaceId},workspace_id.is.null`)
+            .order('workspace_id', { ascending: false, nullsFirst: false })
             .limit(1)
             .maybeSingle()
         : Promise.resolve({ data: null }),
-      profile?.branch_id
+      workspaceId
         ? supabase.from('profiles')
             .select('user_id, full_name, staff_type')
-            .eq('branch_id', profile.branch_id)
             .eq('is_approved', true)
         : Promise.resolve({ data: null }),
     ]);
-    if (b.data) setBranches(b.data);
     if (t.data) setPropertyTypes(t.data);
     if (templates.data) setWhatsappTemplates(templates.data);
     if (config.data) {
@@ -81,20 +78,6 @@ export default function AdminSettings() {
     if (staff.data) {
       setStaffProfiles(staff.data);
     }
-  };
-
-  const addBranch = async () => {
-    if (!newBranch.name || !newBranch.city) return;
-    await supabase.from('branches').insert([newBranch]);
-    toast({ title: 'Branch added' });
-    setNewBranch({ name: '', city: '' });
-    fetchData();
-  };
-
-  const deleteBranch = async (id: string) => {
-    await supabase.from('branches').delete().eq('id', id);
-    toast({ title: 'Branch deleted' });
-    fetchData();
   };
 
   const addType = async () => {
@@ -116,10 +99,10 @@ export default function AdminSettings() {
     await supabase.from('whatsapp_templates').insert([{
       name: newTemplate.name,
       template: newTemplate.template,
-      branch_id: newTemplate.branch_id || null,
+      workspace_id: activeWorkspace?.id || null,
     }]);
     toast({ title: 'Template added' });
-    setNewTemplate({ name: '', template: '', branch_id: '' });
+    setNewTemplate({ name: '', template: '' });
     fetchData();
   };
 
@@ -150,12 +133,13 @@ export default function AdminSettings() {
   };
 
   const toggleTemperatureIndicator = async (enabled: boolean) => {
-    if (!profile?.branch_id) return;
+    const workspaceId = activeWorkspace?.id;
+    if (!workspaceId) return;
     
     const { data: existing } = await supabase
       .from('lead_settings')
       .select('id')
-      .eq('branch_id', profile.branch_id)
+      .eq('workspace_id', workspaceId)
       .maybeSingle();
     
     if (existing) {
@@ -166,7 +150,7 @@ export default function AdminSettings() {
     } else {
       await supabase
         .from('lead_settings')
-        .insert({ branch_id: profile.branch_id, show_temperature_indicator: enabled });
+        .insert({ workspace_id: workspaceId, show_temperature_indicator: enabled });
     }
     
     setShowTemperatureIndicator(enabled);
@@ -191,11 +175,11 @@ export default function AdminSettings() {
 
       {/* Settings Grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Pipeline & Branches Section */}
+        {/* Pipeline & Organization Section */}
         <Card className="md:col-span-2">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2 text-primary">
-              <GitBranch className="h-5 w-5" />
+              <Workflow className="h-5 w-5" />
               <span className="text-lg font-semibold">Pipeline & Organization</span>
             </div>
           </CardHeader>
@@ -369,26 +353,12 @@ export default function AdminSettings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Input 
                 placeholder="Template name" 
                 value={newTemplate.name} 
                 onChange={(e) => setNewTemplate(p => ({ ...p, name: e.target.value }))} 
               />
-              <Select 
-                value={newTemplate.branch_id || 'all'} 
-                onValueChange={(val) => setNewTemplate(p => ({ ...p, branch_id: val === 'all' ? '' : val }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Button onClick={addTemplate}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Template

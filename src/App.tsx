@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 import Login from "./pages/Login";
@@ -26,16 +26,19 @@ import CalendarPage from "./pages/CalendarPage";
 import NotificationPreferences from "./pages/NotificationPreferences";
 import Customers from "./pages/Customers";
 import ContactBook from "./pages/ContactBook";
+import NoAccess from "./pages/NoAccess";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, isLoading } = useAuth();
+  const { workspaces, isLoading: isWorkspaceLoading } = useWorkspace();
 
-  if (isLoading) return null;
+  if (isLoading || isWorkspaceLoading) return null;
   if (!user) return <Navigate to="/login" replace />;
   if (profile && !profile.is_approved) return <Navigate to="/pending-approval" replace />;
+  if (workspaces.length === 0) return <Navigate to="/no-access" replace />;
 
   return <AppLayout>{children}</AppLayout>;
 }
@@ -50,11 +53,17 @@ function AppRoutes() {
       {/* Public Routes */}
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/pending-approval" element={
-        !user ? <Navigate to="/login" replace /> : 
-        profile?.is_approved ? <Navigate to="/dashboard" replace /> : 
-        <PendingApproval />
+        !user ? <Navigate to="/login" replace /> :
+          profile?.is_approved ? <Navigate to="/dashboard" replace /> :
+            <PendingApproval />
       } />
-      
+
+      {/* No Access Route */}
+      <Route path="/no-access" element={
+        !user ? <Navigate to="/login" replace /> :
+          <NoAccess />
+      } />
+
       {/* Public Portals */}
       <Route path="/portal/rentals" element={<Navigate to="/portal/residential" replace />} />
       <Route path="/portal/:type/:workspaceSlug" element={<Portal />} />
@@ -71,7 +80,7 @@ function AppRoutes() {
       <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
       <Route path="/contact-book" element={<ProtectedRoute><ContactBook /></ProtectedRoute>} />
-      
+
       {/* Admin Routes */}
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />

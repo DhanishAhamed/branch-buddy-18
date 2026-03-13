@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Shield, Trash2, MapPin, Building2 } from 'lucide-react';
+import { Users, Shield, Trash2, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { WorkspaceAssignDialog } from '@/components/admin/WorkspaceAssignDialog';
 
@@ -16,17 +16,10 @@ interface Profile {
   user_id: string;
   email: string | null;
   full_name: string | null;
-  branch_id: string | null;
   is_approved: boolean;
   can_view_owners: boolean;
   can_edit_properties: boolean;
   pipeline_access: 'sales' | 'ops' | 'both';
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  city: string;
 }
 
 interface UserRole {
@@ -36,7 +29,6 @@ interface UserRole {
 
 export default function AdminUsers() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -50,13 +42,11 @@ export default function AdminUsers() {
   }, []);
 
   const fetchData = async () => {
-    const [profilesRes, branchesRes, rolesRes] = await Promise.all([
+    const [profilesRes, rolesRes] = await Promise.all([
       supabase.from('profiles').select('*'),
-      supabase.from('branches').select('*'),
       supabase.from('user_roles').select('user_id, role'),
     ]);
     if (profilesRes.data) setProfiles(profilesRes.data as Profile[]);
-    if (branchesRes.data) setBranches(branchesRes.data);
     if (rolesRes.data) setUserRoles(rolesRes.data as UserRole[]);
   };
 
@@ -80,20 +70,20 @@ export default function AdminUsers() {
 
   const updateUserRole = async (userId: string, newRole: 'admin' | 'staff') => {
     const existingRole = userRoles.find(r => r.user_id === userId);
-    
+
     if (existingRole) {
       await supabase.from('user_roles').update({ role: newRole }).eq('user_id', userId);
     } else {
       await supabase.from('user_roles').insert({ user_id: userId, role: newRole });
     }
-    
+
     toast({ title: 'Role Updated', description: `User role set to ${newRole}` });
     fetchData();
   };
 
   const deleteUser = async (userId: string) => {
     const { error } = await supabase.from('profiles').delete().eq('user_id', userId);
-    
+
     if (error) {
       toast({ title: 'Error', description: 'Failed to remove user', variant: 'destructive' });
     } else {
@@ -101,11 +91,6 @@ export default function AdminUsers() {
       await supabase.from('user_roles').delete().eq('user_id', userId);
       fetchData();
     }
-  };
-
-  const getCityForBranch = (branchId: string | null) => {
-    if (!branchId) return 'No City';
-    return branches.find(b => b.id === branchId)?.city || 'Unknown';
   };
 
   return (
@@ -121,8 +106,7 @@ export default function AdminUsers() {
       <div className="grid gap-4">
         {profiles.map((profile) => {
           const userRole = getUserRole(profile.user_id);
-          const city = getCityForBranch(profile.branch_id);
-          
+
           return (
             <Card key={profile.id} className="overflow-hidden">
               <CardContent className="p-4">
@@ -137,10 +121,6 @@ export default function AdminUsers() {
                     <div className="min-w-0">
                       <h3 className="font-semibold text-foreground truncate">{profile.full_name || 'No Name'}</h3>
                       <p className="text-sm text-muted-foreground truncate">{profile.email}</p>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                        <MapPin className="h-3 w-3" />
-                        {city}
-                      </div>
                     </div>
                   </div>
 
@@ -158,29 +138,13 @@ export default function AdminUsers() {
                     </SelectContent>
                   </Select>
 
-                  {/* Branch/City Select */}
-                  <Select
-                    value={profile.branch_id || 'none'}
-                    onValueChange={(val) => updateProfile(profile.user_id, { branch_id: val === 'none' ? null : val })}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Assign City" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No City</SelectItem>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.city} - {b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
                   {/* Workspace Assignment */}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
-                    onClick={() => { 
-                      setSelectedUserForWorkspace(profile); 
-                      setWorkspaceDialogOpen(true); 
+                    onClick={() => {
+                      setSelectedUserForWorkspace(profile);
+                      setWorkspaceDialogOpen(true);
                     }}
                   >
                     <Building2 className="h-4 w-4 mr-1" />
@@ -188,8 +152,8 @@ export default function AdminUsers() {
                   </Button>
 
                   {/* Access Controls */}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => { setSelectedUser(profile); setIsDialogOpen(true); }}
                   >
@@ -198,8 +162,8 @@ export default function AdminUsers() {
                   </Button>
 
                   {/* Delete */}
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
                     className="text-destructive hover:bg-destructive/10"
                     onClick={() => deleteUser(profile.user_id)}
@@ -231,7 +195,7 @@ export default function AdminUsers() {
               User Permissions
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedUser && (
             <div className="space-y-4">
               <div className="p-3 bg-muted/50 rounded-lg">

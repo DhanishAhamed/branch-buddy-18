@@ -111,7 +111,7 @@ export default function PipelineV2() {
   }, []);
 
   useEffect(() => {
-    if (profile?.branch_id) {
+    if (activeWorkspace?.id) {
       fetchLeads();
       fetchProperties();
     }
@@ -130,7 +130,7 @@ export default function PipelineV2() {
       .from('leads')
       .select('id, name, phone, email, status, pipeline, created_at, assigned_to, source, workspace_id')
       .order('created_at', { ascending: false });
-    
+
     const { data } = await query;
     if (data) setLeads(data);
   };
@@ -187,8 +187,8 @@ export default function PipelineV2() {
 
   // Convert stages to Kanban columns
   const currentStages = stages.filter(s => s.pipeline === activeTab);
-  
-  const kanbanColumns: KanbanColumn[] = useMemo(() => 
+
+  const kanbanColumns: KanbanColumn[] = useMemo(() =>
     currentStages.map(stage => ({
       id: stage.name,
       name: stage.name,
@@ -199,7 +199,7 @@ export default function PipelineV2() {
     [currentStages]
   );
 
-  const getLeadsByColumn = (columnId: string) => 
+  const getLeadsByColumn = (columnId: string) =>
     filteredLeads.filter(lead => {
       // Status must match the column
       if (lead.status !== columnId) return false;
@@ -237,13 +237,13 @@ export default function PipelineV2() {
     } else {
       // Direct update without dialog
       const updates: any = { status: newStatus };
-      
+
       // Cross-pipeline handoff: if moving to site_visit_scheduled in ops, also set pipeline to show in both
       if (newStatus === 'site_visit_scheduled' && activeTab === 'ops') {
         updates.pipeline = 'both';
       }
 
-      setLeads(prev => prev.map(l => 
+      setLeads(prev => prev.map(l =>
         l.id === leadId ? { ...l, status: newStatus, ...(updates.pipeline ? { pipeline: updates.pipeline } : {}) } : l
       ));
 
@@ -279,7 +279,7 @@ export default function PipelineV2() {
     if (data.siteVisitTime) {
       leadUpdate.site_visit_time = data.siteVisitTime.toISOString();
     }
-    
+
     // Cross-pipeline handoff: site_visit_scheduled leads appear in both pipelines
     if (toStatus === 'site_visit_scheduled') {
       leadUpdate.pipeline = 'both';
@@ -338,7 +338,7 @@ export default function PipelineV2() {
         .eq('lead_id', leadId)
         .eq('property_id', data.propertyId)
         .maybeSingle();
-      
+
       if (!existing) {
         await supabase.from('lead_properties').insert([{
           lead_id: leadId,
@@ -361,13 +361,12 @@ export default function PipelineV2() {
     // Create customer if closed_won
     if (toStatus === 'closed_won') {
       const lead = leads.find(l => l.id === leadId);
-      if (lead && profile?.branch_id) {
+      if (lead && activeWorkspace?.id) {
         const { data: newCustomer } = await supabase.from('customers').insert({
           name: lead.name,
           phone: lead.phone || null,
           email: lead.email || null,
           lead_id: leadId,
-          branch_id: profile.branch_id,
           workspace_id: activeWorkspace?.id || null,
           customer_type: 'buyer',
           notes: data.callNotes || null,
@@ -385,7 +384,7 @@ export default function PipelineV2() {
     }
 
     // Update local state
-    setLeads(prev => prev.map(l => 
+    setLeads(prev => prev.map(l =>
       l.id === leadId ? { ...l, status: toStatus, ...(toStatus === 'site_visit_scheduled' ? { pipeline: 'both' } : {}) } : l
     ));
 
@@ -518,8 +517,8 @@ export default function PipelineV2() {
                               </div>
                             </div>
                             {showTemperatureIndicator && (
-                              <LeadTemperatureBadge 
-                                temperature={getLeadTemperature(lead.id, lead.created_at)} 
+                              <LeadTemperatureBadge
+                                temperature={getLeadTemperature(lead.id, lead.created_at)}
                                 size="sm"
                               />
                             )}
@@ -599,12 +598,12 @@ function getColorFromClass(colorClass: string): string {
     'bg-pink-500/10': '#EC4899',
     'bg-primary/10': 'hsl(var(--primary))',
   };
-  
+
   for (const [key, value] of Object.entries(colorMap)) {
     if (colorClass.includes(key.replace('bg-', '').replace('/10', ''))) {
       return value;
     }
   }
-  
+
   return 'hsl(var(--primary))';
 }
