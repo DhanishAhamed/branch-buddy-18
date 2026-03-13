@@ -14,30 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      branches: {
-        Row: {
-          city: string
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          city: string
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          city?: string
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       call_notes: {
         Row: {
           created_at: string
@@ -95,7 +71,6 @@ export type Database = {
       }
       contact_entries: {
         Row: {
-          branch_id: string
           created_at: string
           created_by: string
           email: string | null
@@ -110,7 +85,6 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
-          branch_id: string
           created_at?: string
           created_by: string
           email?: string | null
@@ -125,7 +99,6 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
-          branch_id?: string
           created_at?: string
           created_by?: string
           email?: string | null
@@ -140,13 +113,6 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "contact_entries_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "contact_entries_folder_id_fkey"
             columns: ["folder_id"]
@@ -172,7 +138,6 @@ export type Database = {
       }
       contact_folders: {
         Row: {
-          branch_id: string
           color: string | null
           created_at: string
           created_by: string
@@ -183,7 +148,6 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
-          branch_id: string
           color?: string | null
           created_at?: string
           created_by: string
@@ -194,7 +158,6 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
-          branch_id?: string
           color?: string | null
           created_at?: string
           created_by?: string
@@ -205,13 +168,6 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "contact_folders_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "contact_folders_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -279,7 +235,6 @@ export type Database = {
       }
       customers: {
         Row: {
-          branch_id: string
           created_at: string
           customer_type: string
           email: string | null
@@ -292,7 +247,6 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
-          branch_id: string
           created_at?: string
           customer_type?: string
           email?: string | null
@@ -305,7 +259,6 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
-          branch_id?: string
           created_at?: string
           customer_type?: string
           email?: string | null
@@ -318,13 +271,6 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "customers_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "customers_lead_id_fkey"
             columns: ["lead_id"]
@@ -393,35 +339,27 @@ export type Database = {
       }
       lead_settings: {
         Row: {
-          branch_id: string | null
           created_at: string
           id: string
           show_temperature_indicator: boolean
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
-          branch_id?: string | null
           created_at?: string
           id?: string
           show_temperature_indicator?: boolean
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
-          branch_id?: string | null
           created_at?: string
           id?: string
           show_temperature_indicator?: boolean
           updated_at?: string
+          workspace_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "lead_settings_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: true
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       lead_status_log: {
         Row: {
@@ -465,7 +403,6 @@ export type Database = {
         Row: {
           assigned_to: string | null
           bhk_options: string[] | null
-          branch_id: string
           budget_max: number | null
           budget_min: number | null
           created_at: string
@@ -491,7 +428,6 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           bhk_options?: string[] | null
-          branch_id: string
           budget_max?: number | null
           budget_min?: number | null
           created_at?: string
@@ -517,7 +453,6 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           bhk_options?: string[] | null
-          branch_id?: string
           budget_max?: number | null
           budget_min?: number | null
           created_at?: string
@@ -541,13 +476,6 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "leads_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "leads_property_id_fkey"
             columns: ["property_id"]
@@ -637,7 +565,6 @@ export type Database = {
       }
       pipeline_stages: {
         Row: {
-          branch_id: string | null
           color: string
           created_at: string
           id: string
@@ -646,9 +573,9 @@ export type Database = {
           name: string
           pipeline: string
           position: number
+          workspace_id: string | null
         }
         Insert: {
-          branch_id?: string | null
           color?: string
           created_at?: string
           id?: string
@@ -657,9 +584,9 @@ export type Database = {
           name: string
           pipeline?: string
           position?: number
+          workspace_id?: string | null
         }
         Update: {
-          branch_id?: string | null
           color?: string
           created_at?: string
           id?: string
@@ -668,21 +595,13 @@ export type Database = {
           name?: string
           pipeline?: string
           position?: number
+          workspace_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "pipeline_stages_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
           avatar_url: string | null
-          branch_id: string | null
           can_edit_properties: boolean | null
           can_view_owners: boolean
           created_at: string
@@ -698,7 +617,6 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          branch_id?: string | null
           can_edit_properties?: boolean | null
           can_view_owners?: boolean
           created_at?: string
@@ -714,7 +632,6 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          branch_id?: string | null
           can_edit_properties?: boolean | null
           can_view_owners?: boolean
           created_at?: string
@@ -728,15 +645,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       properties: {
         Row: {
@@ -744,7 +653,6 @@ export type Database = {
           area_sqft: number | null
           bathrooms: number | null
           bedrooms: number | null
-          branch_id: string
           created_at: string
           created_by: string | null
           description: string | null
@@ -766,7 +674,6 @@ export type Database = {
           area_sqft?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
-          branch_id: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -788,7 +695,6 @@ export type Database = {
           area_sqft?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
-          branch_id?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -806,13 +712,6 @@ export type Database = {
           youtube_url?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "properties_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "properties_property_type_id_fkey"
             columns: ["property_type_id"]
@@ -1035,75 +934,59 @@ export type Database = {
       whatsapp_config: {
         Row: {
           api_key: string | null
-          branch_id: string | null
           business_name: string | null
           created_at: string | null
           id: string
           is_enabled: boolean | null
           phone_number: string | null
           updated_at: string | null
+          workspace_id: string | null
         }
         Insert: {
           api_key?: string | null
-          branch_id?: string | null
           business_name?: string | null
           created_at?: string | null
           id?: string
           is_enabled?: boolean | null
           phone_number?: string | null
           updated_at?: string | null
+          workspace_id?: string | null
         }
         Update: {
           api_key?: string | null
-          branch_id?: string | null
           business_name?: string | null
           created_at?: string | null
           id?: string
           is_enabled?: boolean | null
           phone_number?: string | null
           updated_at?: string | null
+          workspace_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_config_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: true
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       whatsapp_templates: {
         Row: {
-          branch_id: string | null
           created_at: string
           id: string
           name: string
           template: string
+          workspace_id: string | null
         }
         Insert: {
-          branch_id?: string | null
           created_at?: string
           id?: string
           name: string
           template: string
+          workspace_id?: string | null
         }
         Update: {
-          branch_id?: string | null
           created_at?: string
           id?: string
           name?: string
           template?: string
+          workspace_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_templates_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       workspaces: {
         Row: {
@@ -1194,7 +1077,6 @@ export type Database = {
           area_sqft: number | null
           bathrooms: number | null
           bedrooms: number | null
-          branch_id: string | null
           created_at: string | null
           description: string | null
           id: string | null
@@ -1214,7 +1096,6 @@ export type Database = {
           area_sqft?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
-          branch_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string | null
@@ -1234,7 +1115,6 @@ export type Database = {
           area_sqft?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
-          branch_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string | null
@@ -1250,13 +1130,6 @@ export type Database = {
           youtube_url?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "properties_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "properties_property_type_id_fkey"
             columns: ["property_type_id"]
@@ -1581,7 +1454,6 @@ export type Database = {
           title: string
         }[]
       }
-      get_user_branch_id: { Args: { _user_id: string }; Returns: string }
       gettransactionid: { Args: never; Returns: unknown }
       has_role: {
         Args: {

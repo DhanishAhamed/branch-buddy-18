@@ -26,7 +26,7 @@ export function KPICards() {
   const { user, profile } = useAuth();
 
   useEffect(() => {
-    if (user && profile?.branch_id) {
+    if (user) {
       fetchKPIs();
     }
   }, [user, profile]);

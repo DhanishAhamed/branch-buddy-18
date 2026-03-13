@@ -81,7 +81,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
   };
 
   const handleImport = async () => {
-    if (!file || !profile?.branch_id) return;
+    if (!file || !activeWorkspace?.id) return;
 
     setIsImporting(true);
     let successCount = 0;
@@ -124,7 +124,6 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
           phone: lead.phone || null,
           source: lead.source || 'import',
           notes: lead.notes || null,
-          branch_id: profile.branch_id,
           workspace_id: activeWorkspace?.id || null,
         });
 

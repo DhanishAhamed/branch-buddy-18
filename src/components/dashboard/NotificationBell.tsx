@@ -56,39 +56,36 @@ export function NotificationBell() {
       .subscribe();
 
     // Also fetch recent leads as notifications (for admins/staff)
-    if (profile?.branch_id) {
-      const leadsChannel = supabase
-        .channel('new-leads-notif')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'leads',
-            filter: `branch_id=eq.${profile.branch_id}`,
-          },
-          (payload) => {
-            const newLead = payload.new as { id: string; name: string; created_at: string };
-            const leadNotif: Notification = {
-              id: `lead-${newLead.id}`,
-              title: 'New Lead Added',
-              message: `${newLead.name} submitted an inquiry`,
-              type: 'new_lead',
-              is_read: false,
-              link: null,
-              scheduled_for: null,
-              created_at: newLead.created_at,
-            };
-            setNotifications((prev) => [leadNotif, ...prev].slice(0, 20));
-          }
-        )
-        .subscribe();
+    const leadsChannel = supabase
+      .channel('new-leads-notif')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'leads',
+        },
+        (payload) => {
+          const newLead = payload.new as { id: string; name: string; created_at: string };
+          const leadNotif: Notification = {
+            id: `lead-${newLead.id}`,
+            title: 'New Lead Added',
+            message: `${newLead.name} submitted an inquiry`,
+            type: 'new_lead',
+            is_read: false,
+            link: null,
+            scheduled_for: null,
+            created_at: newLead.created_at,
+          };
+          setNotifications((prev) => [leadNotif, ...prev].slice(0, 20));
+        }
+      )
+      .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-        supabase.removeChannel(leadsChannel);
-      };
-    }
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(leadsChannel);
+    };
 
     return () => {
       supabase.removeChannel(channel);

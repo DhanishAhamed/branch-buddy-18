@@ -22,14 +22,14 @@ export function AgentLeaderboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (profile?.branch_id) fetchAgents();
+    fetchAgents();
   }, [profile]);
 
   const fetchAgents = async () => {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, full_name')
-      .eq('branch_id', profile?.branch_id);
+      .eq('is_approved', true);
 
     if (!profiles) return;
 

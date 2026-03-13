@@ -59,18 +59,17 @@ export function StatusTransitionDialog({
   const showCustomerResponse = toStatus === 'contacted';
 
   useEffect(() => {
-    if (open && showSiteVisit && profile?.branch_id) {
+    if (open && showSiteVisit) {
       supabase
         .from('profiles')
         .select('user_id, full_name')
-        .eq('branch_id', profile.branch_id)
         .eq('staff_type', 'operational')
         .eq('is_approved', true)
         .then(({ data }) => {
           if (data) setOpsStaff(data);
         });
     }
-  }, [open, showSiteVisit, profile?.branch_id]);
+  }, [open, showSiteVisit]);
 
   const setPresetFollowup = (preset: 'tomorrow' | '2days' | 'week' | 'month') => {
     let date: Date;

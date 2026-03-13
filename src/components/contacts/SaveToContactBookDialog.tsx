@@ -65,7 +65,7 @@ export function SaveToContactBookDialog({
   };
 
   const handleSave = async () => {
-    if (!selectedFolderId || !profile?.branch_id) return;
+    if (!selectedFolderId || !activeWorkspace?.id) return;
     setSaving(true);
 
     const { error } = await supabase.from('contact_entries').insert({
@@ -76,9 +76,8 @@ export function SaveToContactBookDialog({
       notes: notes.trim() || null,
       source_type: sourceType,
       source_id: sourceId || null,
-      branch_id: profile.branch_id,
-      workspace_id: activeWorkspace?.id || null,
-      created_by: profile.user_id,
+      workspace_id: activeWorkspace.id,
+      created_by: profile?.user_id || '',
     });
 
     setSaving(false);

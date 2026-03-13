@@ -53,7 +53,7 @@ export default function Properties() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (profile?.branch_id || isAdmin) {
+    if (activeWorkspace?.id || isAdmin) {
       fetchProperties();
       fetchPropertyTypes();
     }

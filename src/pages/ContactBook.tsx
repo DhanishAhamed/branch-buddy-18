@@ -117,7 +117,7 @@ export default function ContactBook() {
   };
 
   const handleSaveFolder = async () => {
-    if (!folderName.trim() || !profile?.branch_id) return;
+    if (!folderName.trim() || !activeWorkspace?.id) return;
 
     if (editingFolder) {
       await supabase.from('contact_folders').update({
@@ -129,9 +129,8 @@ export default function ContactBook() {
       await supabase.from('contact_folders').insert({
         name: folderName.trim(),
         description: folderDesc.trim() || null,
-        branch_id: profile.branch_id,
-        workspace_id: activeWorkspace?.id || null,
-        created_by: profile.user_id,
+        workspace_id: activeWorkspace.id,
+        created_by: profile?.user_id || '',
       });
       toast({ title: 'Folder created' });
     }
@@ -154,7 +153,7 @@ export default function ContactBook() {
   };
 
   const handleSaveContact = async () => {
-    if (!contactName.trim() || !selectedFolder || !profile?.branch_id) return;
+    if (!contactName.trim() || !selectedFolder || !activeWorkspace?.id) return;
 
     await supabase.from('contact_entries').insert({
       folder_id: selectedFolder.id,
@@ -163,9 +162,8 @@ export default function ContactBook() {
       email: contactEmail.trim() || null,
       notes: contactNotes.trim() || null,
       source_type: 'manual',
-      branch_id: profile.branch_id,
-      workspace_id: activeWorkspace?.id || null,
-      created_by: profile.user_id,
+      workspace_id: activeWorkspace.id,
+      created_by: profile?.user_id || '',
     });
 
     toast({ title: 'Contact added' });

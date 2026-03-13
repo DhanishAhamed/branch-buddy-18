@@ -19,14 +19,13 @@ export function PropertyHotlist() {
   const { profile } = useAuth();
 
   useEffect(() => {
-    if (profile?.branch_id) fetchProperties();
+    fetchProperties();
   }, [profile]);
 
   const fetchProperties = async () => {
     const { data: props } = await supabase
       .from('properties')
       .select('id, title, address, price')
-      .eq('branch_id', profile?.branch_id)
       .eq('status', 'available')
       .limit(10);
 

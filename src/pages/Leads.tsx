@@ -22,14 +22,7 @@ interface Lead {
   status: string;
   source: string | null;
   created_at: string;
-  branch_id: string;
   assigned_to: string | null;
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  city: string;
 }
 
 interface Profile {
@@ -50,7 +43,6 @@ const statusConfig: Record<string, { bg: string; text: string; label: string }> 
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [staffProfiles, setStaffProfiles] = useState<Profile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -64,20 +56,18 @@ export default function Leads() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (profile?.branch_id || isAdmin) {
+    if (activeWorkspace?.id || isAdmin) {
       fetchData();
     }
   }, [profile, isAdmin, activeWorkspace?.id]);
 
   const fetchData = async () => {
-    const [leadsRes, branchesRes, profilesRes] = await Promise.all([
+    const [leadsRes, profilesRes] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }),
-      supabase.from('branches').select('*'),
       supabase.from('profiles').select('id, user_id, full_name'),
     ]);
     
-    if (leadsRes.data) setLeads(leadsRes.data);
-    if (branchesRes.data) setBranches(branchesRes.data);
+    if (leadsRes.data) setLeads(leadsRes.data as Lead[]);
     if (profilesRes.data) setStaffProfiles(profilesRes.data);
   };
 
@@ -87,9 +77,6 @@ export default function Leads() {
   };
 
   let filteredLeads = leads;
-  if (!isAdmin && profile?.branch_id) {
-    filteredLeads = filteredLeads.filter(lead => lead.branch_id === profile.branch_id);
-  }
   if (isAdmin && filterStaff !== 'all') {
     filteredLeads = filteredLeads.filter(lead => lead.assigned_to === filterStaff);
   }
@@ -200,7 +187,6 @@ export default function Leads() {
               >
                 <CardContent className="p-3 md:p-4">
                   {isMobile ? (
-                    /* Mobile card layout */
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <span className="text-sm font-semibold text-primary">
@@ -233,7 +219,6 @@ export default function Leads() {
                       </div>
                     </div>
                   ) : (
-                    /* Desktop/Tablet layout */
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

@@ -8,7 +8,6 @@ interface Profile {
   email: string | null;
   full_name: string | null;
   avatar_url: string | null;
-  branch_id: string | null;
   is_approved: boolean;
   can_view_owners: boolean;
   can_edit_properties: boolean;
