@@ -28,7 +28,6 @@ const mainItems = [
   { title: 'Pipeline', url: '/pipeline', icon: Kanban },
   { title: 'Properties', url: '/properties', icon: Building2 },
   { title: 'Map Search', url: '/map', icon: Map },
-  { title: 'Chat', url: '/chat', icon: MessageSquare },
   { title: 'Calendar', url: '/calendar', icon: CalendarDays },
   { title: 'Customers', url: '/customers', icon: UserCheck },
 ];

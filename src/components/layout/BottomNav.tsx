@@ -51,9 +51,6 @@ export function BottomNav() {
             <DropdownMenuItem onClick={() => navigate('/customers')}>
               Customers
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/chat')}>
-              Chat
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/calendar')}>
               Calendar
             </DropdownMenuItem>

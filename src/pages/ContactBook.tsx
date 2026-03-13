@@ -30,8 +30,25 @@ import {
   BookUser,
   FolderPlus,
   User,
+  MoreVertical,
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ContactFolder {
   id: string;
@@ -75,6 +92,10 @@ export default function ContactBook() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactNotes, setContactNotes] = useState('');
+
+  // Delete confirmations
+  const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAdmin) fetchFolders();
@@ -149,6 +170,7 @@ export default function ContactBook() {
       setEntries([]);
     }
     toast({ title: 'Folder deleted' });
+    setFolderToDelete(null);
     fetchFolders();
   };
 
@@ -180,6 +202,7 @@ export default function ContactBook() {
     await supabase.from('contact_entries').delete().eq('id', entryId);
     if (selectedFolder) fetchEntries(selectedFolder.id);
     fetchFolders();
+    setEntryToDelete(null);
     toast({ title: 'Contact removed' });
   };
 
@@ -224,52 +247,49 @@ export default function ContactBook() {
             folders.map(folder => (
               <Card
                 key={folder.id}
-                className="cursor-pointer hover:shadow-md transition-shadow group"
+                className="cursor-pointer hover:shadow-md transition-all group border-muted/60 hover:border-primary/30 bg-card hover:bg-card/50"
                 onClick={() => setSelectedFolder(folder)}
               >
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <FolderOpen className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{folder.name}</p>
-                        {folder.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{folder.description}</p>
-                        )}
-                      </div>
+                <CardContent className="p-4 sm:p-5 flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FolderOpen className="h-5 w-5 text-primary" />
                     </div>
-                    <Badge variant="secondary">{folder._count || 0}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-primary/5 hover:bg-primary/10">{folder._count || 0}</Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingFolder(folder);
+                            setFolderName(folder.name);
+                            setFolderDesc(folder.description || '');
+                            setFolderDialogOpen(true);
+                          }}>
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={(e) => {
+                            e.stopPropagation();
+                            setFolderToDelete(folder.id);
+                          }}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingFolder(folder);
-                        setFolderName(folder.name);
-                        setFolderDesc(folder.description || '');
-                        setFolderDialogOpen(true);
-                      }}
-                    >
-                      <Edit2 className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-destructive hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteFolder(folder.id);
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3 mr-1" />
-                      Delete
-                    </Button>
+                  <div className="mt-auto">
+                    <p className="font-semibold text-foreground text-sm sm:text-base line-clamp-1">{folder.name}</p>
+                    {folder.description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{folder.description}</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -313,48 +333,55 @@ export default function ContactBook() {
               </div>
             ) : (
               filteredEntries.map(entry => (
-                <Card key={entry.id} className="group">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                          {entry.name.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm text-foreground truncate">{entry.name}</p>
-                          {getSourceBadge(entry.source_type)}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                          {entry.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {entry.phone}
-                            </span>
-                          )}
-                          {entry.email && (
-                            <span className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              {entry.email}
-                            </span>
-                          )}
-                        </div>
-                        {entry.notes && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{entry.notes}</p>
-                        )}
+                <div key={entry.id} className="group flex items-start sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors">
+                  <Avatar className="h-10 w-10 shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                      {entry.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm text-foreground truncate">{entry.name}</p>
+                        {getSourceBadge(entry.source_type)}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive shrink-0"
-                        onClick={() => handleDeleteEntry(entry.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {entry.notes && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{entry.notes}</p>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex flex-col gap-1 sm:w-48 shrink-0 py-1 sm:py-0">
+                      {entry.phone ? (
+                        <span className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                          <Phone className="h-3 w-3 shrink-0" />
+                          {entry.phone}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/30 truncate hidden sm:block">- No Phone -</span>
+                      )}
+                      {entry.email ? (
+                        <span className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                          <Mail className="h-3 w-3 shrink-0" />
+                          {entry.email}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/30 truncate hidden sm:block">- No Email -</span>
+                      )}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setEntryToDelete(entry.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Contact
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ))
             )}
           </div>
@@ -425,6 +452,48 @@ export default function ContactBook() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Folder Alert Dialog */}
+      <AlertDialog open={!!folderToDelete} onOpenChange={(open) => !open && setFolderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this folder? All contacts inside will also be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => folderToDelete && handleDeleteFolder(folderToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Folder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Entry Alert Dialog */}
+      <AlertDialog open={!!entryToDelete} onOpenChange={(open) => !open && setEntryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Contact</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this contact from this folder? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => entryToDelete && handleDeleteEntry(entryToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Contact
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
