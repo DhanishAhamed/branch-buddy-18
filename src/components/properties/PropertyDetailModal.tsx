@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Share2, Phone, Pencil, Plus, MapPin, Bed, Bath, Maximize, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice } from '@/components/maps/PropertyMarker';
+import { AddInquiryDialog } from './AddInquiryDialog';
+import { EditPropertyDialog } from './EditPropertyDialog';
 
 interface Property {
   id: string;
@@ -19,6 +22,8 @@ interface Property {
   lng: number;
   status?: string;
   description?: string | null;
+  owner_id?: string | null; // Needed for calling owner if we have it, else we fallback
+  workspace_id?: string | null;
 }
 
 interface PropertyDetailModalProps {
@@ -42,8 +47,11 @@ const TYPE_EMOJIS: Record<string, string> = {
 
 export function PropertyDetailModal({ property, onClose, onLocate }: PropertyDetailModalProps) {
   const [note, setNote] = useState('');
+  const [isAddInquiryOpen, setIsAddInquiryOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const { toast } = useToast();
   const panelRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -149,7 +157,15 @@ export function PropertyDetailModal({ property, onClose, onLocate }: PropertyDet
               Location
             </h3>
             <button
-              onClick={() => { onLocate?.(property); onClose(); }}
+              onClick={() => {
+                if (property.lat && property.lng) {
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${property.lat},${property.lng}`, '_blank');
+                } else if (property.address) {
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`, '_blank');
+                }
+                onLocate?.(property);
+                onClose();
+              }}
               className="w-full h-[100px] rounded-xl overflow-hidden relative group"
               style={{ background: 'linear-gradient(135deg, #d8f3dc, #f0faf4)' }}
             >
@@ -190,18 +206,60 @@ export function PropertyDetailModal({ property, onClose, onLocate }: PropertyDet
 
         {/* Footer */}
         <div className="flex-shrink-0 border-t border-[#e2e8ed] px-5 py-3 flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1 text-xs font-bold gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-xs font-bold gap-1"
+            onClick={() => {
+              // we don't have owner phone directly in property type usually, so fallback toast if unavailable
+              // If your schema includes it, you'd do: window.location.href = `tel:${property.owner_phone}`
+              toast({ title: 'Contact Support', description: 'Owner phone lookup is under maintenance.' });
+            }}
+          >
             <Phone className="h-3.5 w-3.5" /> Call Owner
           </Button>
-          <Button variant="outline" size="sm" className="flex-1 text-xs font-bold gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-xs font-bold gap-1"
+            onClick={() => setIsEditOpen(true)}
+          >
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Button>
-          <Button size="sm" className="flex-1 text-xs font-bold gap-1"
-            style={{ background: '#1a4731', color: 'white' }}>
+          <Button
+            size="sm"
+            className="flex-1 text-xs font-bold gap-1"
+            style={{ background: '#1a4731', color: 'white' }}
+            onClick={() => setIsAddInquiryOpen(true)}
+          >
             <Plus className="h-3.5 w-3.5" /> Add Inquiry
           </Button>
         </div>
       </div>
+
+      <AddInquiryDialog
+        property={{
+          id: property.id,
+          title: property.title,
+          workspace_id: property.workspace_id || null,
+        }}
+        open={isAddInquiryOpen}
+        onOpenChange={setIsAddInquiryOpen}
+      />
+
+      <EditPropertyDialog
+        property={{
+          ...property,
+          location: (property as any).location || `POINT(${property.lng} ${property.lat})`
+        } as any}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        onSuccess={() => {
+          setIsEditOpen(false);
+          // Hard reload to reflect changes in MapSearch and any other parents
+          window.location.reload();
+        }}
+      />
 
       <style>{`
         @keyframes slideInRight {

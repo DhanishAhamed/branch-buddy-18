@@ -422,7 +422,7 @@ export default function MapSearch() {
           </div>
 
           {/* Filter Chips */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="flex flex-wrap gap-1.5">
             <FilterChip
               label={selectedType === 'all' ? 'All Types' : propertyTypes.find(t => t.id === selectedType)?.name || 'All Types'}
               active={selectedType !== 'all'}
