@@ -77,7 +77,7 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSuccess }: 
       setBedrooms(property.bedrooms?.toString() || '');
       setBathrooms(property.bathrooms?.toString() || '');
       setPropertyTypeId(property.property_type_id || '');
-      setStatus(property.status);
+      setStatus(property.status || 'available');
       setExistingImages(property.images || []);
       setYoutubeUrl(property.youtube_url || '');
 
