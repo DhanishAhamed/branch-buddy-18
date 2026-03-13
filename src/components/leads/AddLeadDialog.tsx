@@ -149,8 +149,8 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!profile?.branch_id) {
-      toast({ title: 'Error', description: 'No branch assigned. Please contact admin.', variant: 'destructive' });
+    if (!activeWorkspace?.id) {
+      toast({ title: 'Error', description: 'No workspace selected. Please select a workspace.', variant: 'destructive' });
       return;
     }
 
@@ -172,8 +172,7 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
       email: email.trim() || null,
       phone: phone.trim() || null,
       source,
-      branch_id: profile.branch_id,
-      workspace_id: activeWorkspace?.id || null,
+      workspace_id: activeWorkspace.id,
       notes: extraNote.trim() || null,
       assigned_to: assignedTo || null,
       interested_places: interestedPlaces.length > 0 ? interestedPlaces : [],

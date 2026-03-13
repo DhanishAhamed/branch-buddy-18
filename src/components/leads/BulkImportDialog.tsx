@@ -124,7 +124,6 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
           phone: lead.phone || null,
           source: lead.source || 'import',
           notes: lead.notes || null,
-          branch_id: profile.branch_id,
           workspace_id: activeWorkspace?.id || null,
         });
 
