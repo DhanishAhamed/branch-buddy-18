@@ -35,13 +35,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const acceptPendingInvitations = async (userId: string, email: string) => {
+    try {
+      // Check for pending invitations
+      const { data: invitations } = await supabase
+        .from('workspace_invitations')
+        .select('workspace_id, role')
+        .eq('email', email)
+        .is('accepted_at', null);
+
+      if (invitations && invitations.length > 0) {
+        for (const inv of invitations) {
+          // Add to workspace
+          await supabase.from('user_workspaces').upsert({
+            user_id: userId,
+            workspace_id: inv.workspace_id,
+            role: inv.role,
+            is_active: true,
+          }, { onConflict: 'user_id,workspace_id' });
+
+          // Mark invitation as accepted
+          await supabase
+            .from('workspace_invitations')
+            .update({ accepted_at: new Date().toISOString() })
+            .eq('workspace_id', inv.workspace_id)
+            .eq('email', email);
+        }
+      }
+    } catch (err) {
+      console.error('Error accepting invitations:', err);
+    }
+  };
+
   const fetchProfile = async (userId: string) => {
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
       .eq('user_id', userId)
       .maybeSingle();
-    
+
     if (profileData) {
       setProfile(profileData as Profile);
     }
@@ -51,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select('role')
       .eq('user_id', userId)
       .maybeSingle();
-    
+
     setIsAdmin(roleData?.role === 'admin');
   };
 
@@ -69,8 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
+          // Accept any pending workspace invitations
+          if (event === 'SIGNED_IN' && newSession.user.email) {
+            setTimeout(() => acceptPendingInvitations(newSession.user.id, newSession.user.email!), 0);
+          }
           // Use setTimeout to avoid Supabase deadlock
-          setTimeout(() => fetchProfile(newSession.user.id), 0);
+          setTimeout(() => fetchProfile(newSession.user.id), 100);
         } else {
           setProfile(null);
           setIsAdmin(false);
